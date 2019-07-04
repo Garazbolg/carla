@@ -180,7 +180,7 @@ class World(object):
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
         self._actor_filter = actor_filter
-        self.vehicle_index = 16
+        self.vehicle_index = 0
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -192,6 +192,8 @@ class World(object):
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         # Get a specific blueprint selected by ID.
         blueprint = self.world.get_blueprint_library().filter(self._actor_filter)[self.vehicle_index]
+        for bp in self.world.get_blueprint_library().filter(self._actor_filter):
+            print(str(bp.id))
         self.vehicle_index = self.vehicle_index + 1
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('color'):
@@ -222,8 +224,8 @@ class World(object):
         self.hud.notification(actor_type)
         #Setup the mirrors.
         self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(320,240),(0                  ,self.hud.dim[1]-240),('/eSoft/Mirror/IN/0','/eSoft/Mirror/OUT/0'),(-1.5,-1,1),(0,185,0)))
-        self.mirrors.append(Mirror(self.player,(320,240),(self.hud.dim[0]-320,self.hud.dim[1]-240),('/eSoft/Mirror/IN/1','/eSoft/Mirror/OUT/1'),(-1.5,1,1),(0,175,0)))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/0','/eSoft/Mirror/OUT/0'),(-1.5,-1,1),(0,185,0)))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/1','/eSoft/Mirror/OUT/1'),(-1.5, 1,1),(0,175,0)))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -295,7 +297,7 @@ class KeyboardControl(object):
                     world.hud.toggle_info()
                 elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
                     world.hud.help.toggle()
-                elif event.key == K_TAB:
+                elif event.key == K_TAB: #TODO : Add Steeringwheel Button in the other one
                     world.camera_manager.toggle_camera()
                 elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
                     world.next_weather(reverse=True)
@@ -619,8 +621,9 @@ class DualControl(object):
 
 
 class HUD(object):
-    def __init__(self, width, height):
+    def __init__(self, width, height, mDim):
         self.dim = (width, height)
+        self.mDim = mDim
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
         fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
         default_font = 'ubuntumono'
@@ -915,11 +918,19 @@ class CameraManager(object):
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         #Attachment = carla.AttachmentType
         self.fov = 60
-        self._camera_transforms =[
-                    carla.Transform(carla.Location(x=0, z=1.2),carla.Rotation(yaw=-self.fov)),
-                    carla.Transform(carla.Location(x=0, z=1.2)),
-                    carla.Transform(carla.Location(x=0, z=1.2),carla.Rotation(yaw=+self.fov))
-                ] # <= Adjust depending on the model of car we want to display
+        self.fov_offset = 2
+        self.side_offset=0.35
+        self._camera_transforms =([
+                    carla.Transform(carla.Location(y=-self.side_offset, z=1.2),carla.Rotation(yaw=-self.fov - self.fov_offset)),
+                    carla.Transform(carla.Location(y=-self.side_offset, z=1.2)),
+                    carla.Transform(carla.Location(y=-self.side_offset, z=1.2),carla.Rotation(yaw=+self.fov + self.fov_offset))
+                ],
+                [
+                    carla.Transform(carla.Location(y=self.side_offset, z=1.2),carla.Rotation(yaw=-self.fov - self.fov_offset)),
+                    carla.Transform(carla.Location(y=self.side_offset, z=1.2)),
+                    carla.Transform(carla.Location(y=self.side_offset, z=1.2),carla.Rotation(yaw=+self.fov + self.fov_offset))
+                ]
+                ) # <= Adjust depending on the model of car we want to display
         self.surfaces_pos = [
             (0,0),
             (hud.dim[0]/3,0),
@@ -927,6 +938,7 @@ class CameraManager(object):
         ]
         self.transform_index = 1
         self.sensors = [
+            ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB']]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
@@ -956,7 +968,7 @@ class CameraManager(object):
             for i in range(3):
                 self.sensor_actors.append(self._parent.get_world().spawn_actor(
                     self.sensors[index][-1],
-                    self._camera_transforms[i],
+                    self._camera_transforms[self.transform_index][i],
                     attach_to=self._parent,
                     attachment_type=carla.AttachmentType.Rigid))
                 # We need to pass the lambda a weak reference to self to avoid
@@ -1030,7 +1042,7 @@ class Mirror(object):
         bp.set_attribute('image_size_x', str(self.dim[0]))
         bp.set_attribute('image_size_y', str(self.dim[1]))
         bp.set_attribute('fov','70')
-        bp.set_attribute('sensor_tick',str(1.0))
+        bp.set_attribute('sensor_tick',str(1.0/20))
         self.sensor = self._parent.get_world().spawn_actor(
                 bp,
                 carla.Transform(
@@ -1087,9 +1099,10 @@ def game_loop(args):
         
         display = pygame.display.set_mode(
             (args.width, args.height),
-            pygame.HWSURFACE | pygame.DOUBLEBUF)# | pygame.FULLSCREEN)
+            pygame.HWSURFACE | pygame.DOUBLEBUF | 
+            ( pygame.FULLSCREEN if args.fullscreen else 0))
 
-        hud = HUD(args.width, args.height)
+        hud = HUD(args.width, args.height,(args.mWidth,args.mHeight))
         world = World(client.get_world(), hud, args.filter, args.rolename)
         if args.wheel :
             controller = DualControl(world, args.autopilot)
@@ -1098,7 +1111,7 @@ def game_loop(args):
 
         clock = pygame.time.Clock()
         while True:
-            clock.tick_busy_loop(60)
+            clock.tick_busy_loop(144)
             if controller.parse_events(client, world, clock):
                 return
             world.tick(clock)
@@ -1164,9 +1177,19 @@ def main():
         action='store_true',
         help='enable wheel controls'
     )
+    argparser.add_argument(
+        '--mirror_size',
+        default='320x240',
+        help='mirror resolution (default: 320x240)')
+    argparser.add_argument(
+        '--fullscreen',
+        action='store_true',
+        help='Launch the game in fullscreen'
+    )
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
+    args.mWidth, args.mHeight = [int(x) for x in args.mirror_size.split('x')]
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
