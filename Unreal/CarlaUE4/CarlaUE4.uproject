@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "4.22",
+	"EngineAssociation": "{0004A013-08D6-EA97-9BB7-064A9C1A95A4}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -12,7 +12,8 @@
 				"Engine",
 				"PhysXVehicles",
 				"Carla",
-				"CoreUObject"
+				"CoreUObject",
+				"ROSIntegration"
 			]
 		}
 	],
@@ -94,6 +95,10 @@
 		},
 		{
 			"Name": "SteamVR",
+			"Enabled": false
+		},
+		{
+			"Name": "eSoftThings_Simulator",
 			"Enabled": false
 		}
 	]

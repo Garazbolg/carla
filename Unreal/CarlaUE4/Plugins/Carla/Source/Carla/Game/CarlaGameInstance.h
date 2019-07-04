@@ -10,6 +10,7 @@
 
 #include "Carla/Game/CarlaEngine.h"
 #include "Carla/Server/CarlaServer.h"
+#include "ROSIntegration/Classes/ROSIntegrationGameInstance.h"
 
 #include "CarlaGameInstance.generated.h"
 
@@ -18,7 +19,7 @@ class UCarlaSettings;
 /// The game instance contains elements that must be kept alive in between
 /// levels. It is instantiate once per game.
 UCLASS()
-class CARLA_API UCarlaGameInstance : public UGameInstance
+class CARLA_API UCarlaGameInstance : public UROSIntegrationGameInstance
 {
   GENERATED_BODY()
 
