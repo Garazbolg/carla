@@ -211,6 +211,8 @@ bool UTopic::Subscribe(std::function<void(TSharedPtr<FROSBaseMsg>)> func)
 bool UTopic::Unsubscribe()
 {
 	_State.Subscribed = false;
+	if(m_pDataBuffer != nullptr)
+		FMemory::Free(m_pDataBuffer);
 	return _State.Connected && _Implementation && _Implementation->Unsubscribe();
 }
 
@@ -274,22 +276,29 @@ FString UTopic::GetDetailedInfoInternal() const
 
 void UTopic::Init(const FString& TopicName, EMessageType MessageType, int32 QueueSize)
 {
-	//UE_LOG(LogROS,Log,TEXT("Init"))
+	UE_LOG(LogROS,Log,TEXT("Init"))
 	_State.Blueprint = true;
 	_State.BlueprintMessageType = MessageType;
-
-	UROSIntegrationGameInstance* ROSInstance = Cast<UROSIntegrationGameInstance>(GWorld->GetGameInstance());
-	if (ROSInstance)
+	if(GWorld)
 	{
-		if (ROSInstance->bConnectToROS && _State.Connected)
+		UROSIntegrationGameInstance* ROSInstance = Cast<UROSIntegrationGameInstance>(GWorld->GetGameInstance());
+		if (ROSInstance)
 		{
-			Init(ROSInstance->ROSIntegrationCore, TopicName, SupportedMessageTypes[MessageType], QueueSize);
+			if (ROSInstance->bConnectToROS && _State.Connected)
+			{
+				Init(ROSInstance->ROSIntegrationCore, TopicName, SupportedMessageTypes[MessageType], QueueSize);
+			}
+		}
+		else
+		{
+			UE_LOG(LogROS, Warning, TEXT("ROSIntegrationGameInstance does not exist."));
 		}
 	}
 	else
 	{
-		UE_LOG(LogROS, Warning, TEXT("ROSIntegrationGameInstance does not exist."));
+		UE_LOG(LogROS, Warning, TEXT("World does not exist."));
 	}
+
 }
 
 bool UTopic::Subscribe()

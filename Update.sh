@@ -48,7 +48,7 @@ CONTENT_FOLDER=$SCRIPT_DIR/Unreal/CarlaUE4/Content/Carla
 
 CONTENT_ID=$(tac $SCRIPT_DIR/Util/ContentVersions.txt | egrep -m 1 . | rev | cut -d' ' -f1 | rev)
 CONTENT_LINK=http://carla-assets-internal.s3.amazonaws.com/Content/${CONTENT_ID}.tar.gz
-
+echo $CONTENT_LINK
 VERSION_FILE=${CONTENT_FOLDER}/.version
 
 function download_content {
