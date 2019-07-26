@@ -262,12 +262,21 @@ static void AddVariationsForTrigger(FActorDefinition &Def)
   }
 }
 
-FActorDefinition UActorBlueprintFunctionLibrary::MakeGenericSensorDefinition(
+FActorDefinition UActorBlueprintFunctionLibrary::MakeGenericDefinition(
+    const FString &Category,
     const FString &Type,
     const FString &Id)
 {
   FActorDefinition Definition;
-  FillIdAndTags(Definition, TEXT("sensor"), Type, Id);
+  FillIdAndTags(Definition, Category, Type, Id);
+  return Definition;
+}
+
+FActorDefinition UActorBlueprintFunctionLibrary::MakeGenericSensorDefinition(
+    const FString &Type,
+    const FString &Id)
+{
+  auto Definition = MakeGenericDefinition(TEXT("sensor"), Type, Id);
   AddRecommendedValuesForSensorRoleNames(Definition);
   return Definition;
 }
@@ -416,6 +425,7 @@ void UActorBlueprintFunctionLibrary::MakeVehicleDefinition(
   AddRecommendedValuesForActorRoleName(Definition,
       {TEXT("autopilot"), TEXT("scenario"), TEXT("ego_vehicle")});
   Definition.Class = Parameters.Class;
+
   if (Parameters.RecommendedColors.Num() > 0)
   {
     FActorVariation Colors;
@@ -427,6 +437,19 @@ void UActorBlueprintFunctionLibrary::MakeVehicleDefinition(
       Colors.RecommendedValues.Emplace(ColorToFString(Color));
     }
     Definition.Variations.Emplace(Colors);
+  }
+
+  if (Parameters.SupportedDrivers.Num() > 0)
+  {
+    FActorVariation Drivers;
+    Drivers.Id = TEXT("driver_id");
+    Drivers.Type = EActorAttributeType::Int;
+    Drivers.bRestrictToRecommended = true;
+    for (auto &Id : Parameters.SupportedDrivers)
+    {
+      Drivers.RecommendedValues.Emplace(FString::FromInt(Id));
+    }
+    Definition.Variations.Emplace(Drivers);
   }
 
   FActorVariation StickyControl;
@@ -492,18 +515,31 @@ void UActorBlueprintFunctionLibrary::MakePedestrianDefinition(
     }
   };
 
+  auto GetAge = [](EPedestrianAge Value) {
+    switch (Value)
+    {
+      case EPedestrianAge::Child:     return TEXT("child");
+      case EPedestrianAge::Teenager:  return TEXT("teenager");
+      case EPedestrianAge::Elderly:   return TEXT("elderly");
+      default:                        return TEXT("adult");
+    }
+  };
+
   Definition.Attributes.Emplace(FActorAttribute{
     TEXT("gender"),
     EActorAttributeType::String,
     GetGender(Parameters.Gender)});
 
-  FActorVariation IsInvincible;
+  Definition.Attributes.Emplace(FActorAttribute{
+    TEXT("age"),
+    EActorAttributeType::String,
+    GetAge(Parameters.Age)});
 
+  FActorVariation IsInvincible;
   IsInvincible.Id = TEXT("is_invincible");
   IsInvincible.Type = EActorAttributeType::Bool;
   IsInvincible.RecommendedValues = { TEXT("true") };
   IsInvincible.bRestrictToRecommended = false;
-
   Definition.Variations.Emplace(IsInvincible);
 
   Success = CheckActorDefinition(Definition);

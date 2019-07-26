@@ -170,9 +170,9 @@ def get_actor_display_name(actor, truncate=250):
 
 
 class World(object):
-    def __init__(self, carla_world, hud, actor_filter, actor_role_name='hero'):
+    def __init__(self, carla_world, hud, args):
         self.world = carla_world
-        self.actor_role_name = actor_role_name
+        self.actor_role_name = args.rolename
         self.map = self.world.get_map()
         self.hud = hud
         self.player = None
@@ -182,15 +182,14 @@ class World(object):
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
-
-        self._actor_filter = actor_filter
+        self._actor_filter = args.filter
+        self._gamma = args.gamma
         self.vehicle_index = 14
         self.mixed_reality_mode = False
         self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
 
         self.noise = NoiseGenerator.NoiseGenerator()
         self.noiseSubscriber = rospy.Subscriber("/eSoft/Rumble/Power",String,self.receive_noise_message)
-
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -208,6 +207,9 @@ class World(object):
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)
             blueprint.set_attribute('color', color)
+        if blueprint.has_attribute('driver_id'):
+            driver_id = random.choice(blueprint.get_attribute('driver_id').recommended_values)
+            blueprint.set_attribute('driver_id', driver_id)
         if blueprint.has_attribute('is_invincible'):
             blueprint.set_attribute('is_invincible', 'true')
         # Spawn the player.
@@ -226,7 +228,7 @@ class World(object):
         self.collision_sensor = CollisionSensor(self.player, self.hud,self)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
-        self.camera_manager = CameraManager(self.player, self.hud)
+        self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
@@ -653,7 +655,7 @@ class HUD(object):
         self._notifications = FadingText(font, (width, 40), (0, height - 40))
         self.help = HelpText(pygame.font.Font(mono, 24), width, height)
         self.server_fps = 0
-        self.frame_number = 0
+        self.frame = 0
         self.simulation_time = 0
         self._show_info = True
         self._info_text = []
@@ -662,7 +664,7 @@ class HUD(object):
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
-        self.frame_number = timestamp.frame_count
+        self.frame = timestamp.frame
         self.simulation_time = timestamp.elapsed_seconds
 
     def tick(self, world, clock):
@@ -677,7 +679,7 @@ class HUD(object):
         heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
         heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
         colhist = world.collision_sensor.get_collision_history()
-        collision = [colhist[x + self.frame_number - 200] for x in range(0, 200)]
+        collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
         max_col = max(1.0, max(collision))
         collision = [x / max_col for x in collision]
         vehicles = world.world.get_actors().filter('vehicle.*')
@@ -865,7 +867,7 @@ class CollisionSensor(object):
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self.world.noise.new_impact(intensity)
-        self.history.append((event.frame_number, intensity))
+        self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
 
@@ -931,7 +933,7 @@ class GnssSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor, hud, gamma_correction):
         self.sensor_actors = None
         self.surfaces = None
         self._parent = parent_actor
@@ -969,6 +971,8 @@ class CameraManager(object):
             bp.set_attribute('image_size_x', str(hud.dim[0]/3))
             bp.set_attribute('image_size_y', str(hud.dim[1]))
             bp.set_attribute('fov',str(self.fov))
+            if bp.has_attribute('gamma'):
+                bp.set_attribute('gamma', str(gamma_correction))
             item.append(bp)
         self.index = None
 
@@ -1045,7 +1049,7 @@ class CameraManager(object):
         array = array[:, :, ::-1]
         self.surfaces[surface_id] = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
-            image.save_to_disk('_out/%08d' % image.frame_number)
+            image.save_to_disk('_out/%08d' % image.frame)
 
 
 class Mirror(object):
@@ -1134,7 +1138,7 @@ def game_loop(args):
             ( pygame.FULLSCREEN if args.fullscreen else 0))
 
         hud = HUD(args.width, args.height,(args.mWidth,args.mHeight))
-        world = World(client.get_world(), hud, args.filter, args.rolename)
+        world = World(client.get_world(), hud, args)
         if args.wheel :
             controller = DualControl(world, args.autopilot)
         else :
@@ -1203,6 +1207,11 @@ def main():
         metavar='NAME',
         default='ego_vehicle',
         help='actor role name (default: "hero")')
+    argparser.add_argument(
+        '--gamma',
+        default=2.2,
+        type=float,
+        help='Gamma correction of the camera (default: 2.2)')
     argparser.add_argument(
         '-w', '--wheel',
         action='store_true',

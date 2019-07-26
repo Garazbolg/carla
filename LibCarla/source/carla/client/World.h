@@ -10,6 +10,7 @@
 #include "carla/Time.h"
 #include "carla/client/DebugHelper.h"
 #include "carla/client/Timestamp.h"
+#include "carla/client/WorldSnapshot.h"
 #include "carla/client/detail/EpisodeProxy.h"
 #include "carla/geom/Transform.h"
 #include "carla/rpc/Actor.h"
@@ -17,6 +18,8 @@
 #include "carla/rpc/EpisodeSettings.h"
 #include "carla/rpc/VehiclePhysicsControl.h"
 #include "carla/rpc/WeatherParameters.h"
+
+#include <optional>
 
 namespace carla {
 namespace client {
@@ -50,19 +53,29 @@ namespace client {
     /// can be used to spawning actor into the world.
     SharedPtr<BlueprintLibrary> GetBlueprintLibrary() const;
 
+    /// Get a random location from the pedestrians navigation mesh
+    boost::optional<geom::Location> GetRandomLocationFromNavigation() const;
+
     /// Return the spectator actor. The spectator controls the view in the
     /// simulator window.
     SharedPtr<Actor> GetSpectator() const;
 
     rpc::EpisodeSettings GetSettings() const;
 
-    void ApplySettings(const rpc::EpisodeSettings &settings);
+    /// @return The id of the frame when the settings were applied.
+    uint64_t ApplySettings(const rpc::EpisodeSettings &settings);
 
     /// Retrieve the weather parameters currently active in the world.
     rpc::WeatherParameters GetWeather() const;
 
     /// Change the weather in the simulation.
     void SetWeather(const rpc::WeatherParameters &weather);
+
+    /// Return a snapshot of the world at this moment.
+    WorldSnapshot GetSnapshot() const;
+
+    /// Find actor by id, return nullptr if not found.
+    SharedPtr<Actor> GetActor(ActorId id) const;
 
     /// Return a list with all the actors currently present in the world.
     SharedPtr<ActorList> GetActors() const;
@@ -88,14 +101,21 @@ namespace client {
         rpc::AttachmentType attachment_type = rpc::AttachmentType::Rigid) noexcept;
 
     /// Block calling thread until a world tick is received.
-    Timestamp WaitForTick(time_duration timeout) const;
+    WorldSnapshot WaitForTick(time_duration timeout) const;
 
     /// Register a @a callback to be called every time a world tick is received.
-    void OnTick(std::function<void(Timestamp)> callback);
+    ///
+    /// @return ID of the callback, use it to remove the callback.
+    size_t OnTick(std::function<void(WorldSnapshot)> callback);
+
+    /// Remove a callback registered with OnTick.
+    void RemoveOnTick(size_t callback_id);
 
     /// Signal the simulator to continue to next tick (only has effect on
     /// synchronous mode).
-    void Tick();
+    ///
+    /// @return The id of the frame that this call started.
+    uint64_t Tick();
 
     DebugHelper MakeDebugHelper() const {
       return DebugHelper{_episode};

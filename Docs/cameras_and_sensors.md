@@ -34,7 +34,7 @@ type of data. However, the data produced by a sensor comes always tagged with:
 
 | Sensor data attribute | Type   | Description |
 | --------------------- | ------ | ----------- |
-| `frame_number`        | int    | Frame number when the measurement took place |
+| `frame`               | int    | Frame number when the measurement took place |
 | `timestamp`           | double | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`           | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 
@@ -50,6 +50,8 @@ This is the list of sensors currently available
   * [sensor.other.collision](#sensorothercollision)
   * [sensor.other.lane_invasion](#sensorotherlane_invasion)
   * [sensor.other.obstacle](#sensorotherobstacle)
+
+Camera sensors use [`carla.colorConverter`](python_api.md#carla.ColorConverter) in order to convert the pixels of the original image.
 
 sensor.camera.rgb
 -----------------
@@ -83,12 +85,12 @@ applied to the image to create a more realistic feel
   * **Lens flares** Simulates the reflection of bright objects on the lens.
   * **Depth of field** Blurs objects near or very far away of the camera.
 
-This sensor produces [`carla.Image`](python_api.md#carlaimagecarlasensordata)
+This sensor produces [`carla.Image`](python_api.md#carla.Image)
 objects.
 
 | Sensor data attribute | Type | Description |
 | --------------------- | ---- | ----------- |
-| `frame_number`        | int    | Frame number when the measurement took place |
+| `frame`               | int    | Frame number when the measurement took place |
 | `timestamp`           | double | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`           | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `width`               | int  | Image width in pixels |
@@ -111,12 +113,12 @@ pixel to the camera (also known as **depth buffer** or **z-buffer**).
 | `fov`               | float | 90.0    | Horizontal field of view in degrees |
 | `sensor_tick`       | float | 0.0     | Seconds between sensor captures (ticks) |
 
-This sensor produces [`carla.Image`](python_api.md#carlaimagecarlasensordata)
+This sensor produces [`carla.Image`](python_api.md#carla.Image)
 objects.
 
 | Sensor data attribute | Type | Description |
 | --------------------- | ---- | ----------- |
-| `frame_number`        | int    | Frame number when the measurement took place |
+| `frame`        | int    | Frame number when the measurement took place |
 | `timestamp`           | double | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`           | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `width`               | int  | Image width in pixels |
@@ -150,12 +152,12 @@ pedestrians appear in a different color than vehicles.
 | `fov`               | float | 90.0    | Horizontal field of view in degrees |
 | `sensor_tick`       | float | 0.0     | Seconds between sensor captures (ticks) |
 
-This sensor produces [`carla.Image`](python_api.md#carlaimagecarlasensordata)
+This sensor produces [`carla.Image`](python_api.md#carla.Image)
 objects.
 
 | Sensor data attribute | Type | Description |
 | --------------------- | ---- | ----------- |
-| `frame_number`        | int    | Frame number when the measurement took place |
+| `frame`               | int    | Frame number when the measurement took place |
 | `timestamp`           | double | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`           | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `width`               | int  | Image width in pixels |
@@ -218,12 +220,12 @@ supposed to generate this frame; `points_per_second / (FPS * channels)`.
 | `sensor_tick`        | float | 0.0     | Seconds between sensor captures (ticks) |
 
 This sensor produces
-[`carla.LidarMeasurement`](python_api.md#carlalidarmeasurementcarlasensordata)
+[`carla.LidarMeasurement`](python_api.md#carla.LidarMeasurement)
 objects.
 
 | Sensor data attribute      | Type       | Description |
 | -------------------------- | ---------- | ----------- |
-| `frame_number`             | int        | Frame number when the measurement took place |
+| `frame`                    | int        | Frame number when the measurement took place |
 | `timestamp`                | double     | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`                | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `horizontal_angle`         | float      | Angle in XY plane of the lidar this frame (in degrees) |
@@ -231,7 +233,7 @@ objects.
 | `get_point_count(channel)` | int        | Number of points per channel captured this frame |
 | `raw_data`                 | bytes      | Array of 32-bits floats (XYZ of each point) |
 
-The object also acts as a Python list of `carla.Location`
+The object also acts as a Python list of [`carla.Location`](python_api.md#carla.Location)
 
 ```py
 for location in lidar_measurement:
@@ -256,13 +258,16 @@ This sensor, when attached to an actor, it registers an event each time the
 actor collisions against something in the world. This sensor does not have any
 configurable attribute.
 
+!!! note
+    This sensor creates "fake" actors when it collides with something that is not an actor, this is so we can retrieve the semantic tags of the object we hit.
+
 This sensor produces a
-[`carla.CollisionEvent`](python_api.md#carlacollisioneventcarlasensordata)
+[`carla.CollisionEvent`](python_api.md#carla.CollisionEvent)
 object for each collision registered
 
 | Sensor data attribute  | Type        | Description |
 | ---------------------- | ----------- | ----------- |
-| `frame_number`         | int         | Frame number when the measurement took place |
+| `frame`                | int         | Frame number when the measurement took place |
 | `timestamp`            | double      | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`            | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `actor`                | carla.Actor | Actor that measured the collision ("self" actor) |
@@ -289,12 +294,12 @@ by this sensor.
 This sensor does not have any configurable attribute.
 
 This sensor produces a
-[`carla.LaneInvasionEvent`](python_api.md#carlalaneinvasioneventcarlasensordata)
+[`carla.LaneInvasionEvent`](python_api.md#carla.LaneInvasionEvent)
 object for each lane marking crossed by the actor
 
 | Sensor data attribute   | Type        | Description |
 | ----------------------- | ----------- | ----------- |
-| `frame_number`          | int         | Frame number when the measurement took place |
+| `frame`                 | int         | Frame number when the measurement took place |
 | `timestamp`             | double      | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`             | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `actor`                 | carla.Actor | Actor that invaded another lane ("self" actor) |
@@ -308,12 +313,12 @@ The gnss position is internally calculated by adding the metric position to
 an initial geo reference location defined within the OpenDRIVE map definition.
 
 This sensor produces
-[`carla.GnssEvent`](python_api.md#carlagnsseventcarlasensordata)
+[`carla.GnssEvent`](python_api.md#carla.GnssEvent)
 objects.
 
 | Sensor data attribute  | Type        | Description |
 | ---------------------- | ----------- | ----------- |
-| `frame_number`         | int         | Frame number when the measurement took place |
+| `frame`                | int         | Frame number when the measurement took place |
 | `timestamp`            | double      | Timestamp of the measurement in simulation seconds since the beginning of the epispode |
 | `transform`            | carla.Transform | Transform in world coordinates of the sensor at the time of the measurement |
 | `latitude`             | double | Latitude position of the actor |
@@ -325,6 +330,9 @@ sensor.other.obstacle
 
 This sensor, when attached to an actor, reports if there is obstacles ahead.
 
+!!! note
+    This sensor creates "fake" actors when it detects obstacles with something that is not an actor, this is so we can retrieve the semantic tags of the object we hit.
+
 | Blueprint attribute  | Type  | Default | Description |
 | -------------------- | ----  | ------- | ----------- |
 | `distance`           | float | 5       | Distance to throw the trace to |
@@ -333,9 +341,8 @@ This sensor, when attached to an actor, reports if there is obstacles ahead.
 | `debug_linetrace`    | bool  | false   | If true, the trace will be visible |
 | `sensor_tick`        | float | 0.0     | Seconds between sensor captures (ticks) |
 
-
 This sensor produces
-[`carla.ObstacleDetectionSensorEvent`](python_api.md#carlaobstacledetectionsensoreventdata)
+[`carla.ObstacleDetectionEvent`](python_api.md#carla.ObstacleDetectionEvent)
 objects.
 
 | Sensor data attribute  | Type        | Description |

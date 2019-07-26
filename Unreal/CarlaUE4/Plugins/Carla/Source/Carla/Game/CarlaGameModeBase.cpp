@@ -6,6 +6,11 @@
 
 #include "Carla.h"
 #include "Carla/Game/CarlaGameModeBase.h"
+#include "Carla/Game/CarlaHUD.h"
+
+#include <compiler/disable-ue4-macros.h>
+#include <carla/rpc/WeatherParameters.h>
+#include <compiler/enable-ue4-macros.h>
 
 ACarlaGameModeBase::ACarlaGameModeBase(const FObjectInitializer& ObjectInitializer)
   : Super(ObjectInitializer)
@@ -17,6 +22,9 @@ ACarlaGameModeBase::ACarlaGameModeBase(const FObjectInitializer& ObjectInitializ
   Episode = CreateDefaultSubobject<UCarlaEpisode>(TEXT("Episode"));
 
   Recorder = CreateDefaultSubobject<ACarlaRecorder>(TEXT("Recorder"));
+
+  // HUD
+  HUDClass = ACarlaHUD::StaticClass();
 
   TaggerDelegate = CreateDefaultSubobject<UTaggerDelegate>(TEXT("TaggerDelegate"));
   CarlaSettingsDelegate = CreateDefaultSubobject<UCarlaSettingsDelegate>(TEXT("CarlaSettingsDelegate"));
@@ -71,8 +79,6 @@ void ACarlaGameModeBase::InitGame(
 
   if (WeatherClass != nullptr) {
     Episode->Weather = World->SpawnActor<AWeather>(WeatherClass);
-    // Apply default weather.
-    Episode->Weather->ApplyWeather(FWeatherParameters());
   } else {
     UE_LOG(LogCarla, Error, TEXT("Missing weather class!"));
   }
@@ -108,6 +114,11 @@ void ACarlaGameModeBase::BeginPlay()
 
   Episode->InitializeAtBeginPlay();
   GameInstance->NotifyBeginEpisode(*Episode);
+
+  if (Episode->Weather != nullptr)
+  {
+    Episode->Weather->ApplyWeather(carla::rpc::WeatherParameters::Default);
+  }
 
   /// @todo Recorder should not tick here, FCarlaEngine should do it.
   // check if replayer is waiting to autostart

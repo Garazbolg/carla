@@ -17,13 +17,6 @@ AObstacleDetectionSensor::AObstacleDetectionSensor(const FObjectInitializer &Obj
   : Super(ObjectInitializer)
 {
   PrimaryActorTick.bCanEverTick = true;
-
-  auto MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RootComponent"));
-  MeshComp->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-  MeshComp->bHiddenInGame = true;
-  MeshComp->CastShadow = false;
-  MeshComp->PostPhysicsComponentTick.bCanEverTick = false;
-  RootComponent = MeshComp;
 }
 
 FActorDefinition AObstacleDetectionSensor::GetSensorDefinition()
@@ -49,11 +42,12 @@ void AObstacleDetectionSensor::Set(const FActorDescription &Description)
       "only_dynamics",
       Description.Variations,
       bOnlyDynamics);
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
   bDebugLineTrace = UActorBlueprintFunctionLibrary::RetrieveActorAttributeToBool(
       "debug_linetrace",
       Description.Variations,
       bDebugLineTrace);
-
+#endif
 }
 
 void AObstacleDetectionSensor::Tick(float DeltaSeconds)
@@ -70,6 +64,7 @@ void AObstacleDetectionSensor::Tick(float DeltaSeconds)
   // Initialization of Query Parameters
   FCollisionQueryParams TraceParams(FName(TEXT("ObstacleDetection Trace")), true, this);
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
   // If debug mode enabled, we create a tag that will make the sweep be
   // displayed.
   if (bDebugLineTrace)
@@ -78,6 +73,7 @@ void AObstacleDetectionSensor::Tick(float DeltaSeconds)
     CurrentWorld->DebugDrawTraceTag = TraceTag;
     TraceParams.TraceTag = TraceTag;
   }
+#endif
 
   // Hit against complex meshes
   TraceParams.bTraceComplex = true;
