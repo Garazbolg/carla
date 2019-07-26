@@ -188,8 +188,8 @@ class World(object):
         self.mixed_reality_mode = False
         self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
 
-        self.noise = NoiseGenerator.NoiseGenerator()
-        self.noiseSubscriber = rospy.Subscriber("/eSoft/Rumble/Power",String,self.receive_noise_message)
+        self.noise = NoiseGenerator.SoundManager()
+        self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
 
         self.restart()
         self.world.on_tick(hud.on_world_tick)
@@ -233,8 +233,8 @@ class World(object):
         self.hud.notification(actor_type)
         #Setup the mirrors.
         self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/0','/eSoft/Mirror/OUT/0'),(-1.5,-1,1),(0,185,0),not self.mixed_reality_mode))
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/1','/eSoft/Mirror/OUT/1'),(-1.5, 1,1),(0,175,0),not self.mixed_reality_mode))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/0','/eSoft/Mirror/OUT/0'),(0,-1,1),(0,225,0),not self.mixed_reality_mode))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/1','/eSoft/Mirror/OUT/1'),(0, 1,1),(0,135,0),not self.mixed_reality_mode))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -251,11 +251,12 @@ class World(object):
         self.restart()
 
     def receive_noise_message(self, msg):
-        power = float(msg.data)
-        self.noise.new_impact(power)
+        self.noise.warningActive = True if msg.data == '1' else 0
 
     def tick(self, clock):
         self.hud.tick(self, clock)
+        v = self.player.get_velocity()
+        self.noise.velocity = (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
 
     def render(self, display):
         self.camera_manager.render(display)
@@ -435,6 +436,8 @@ class DualControl(object):
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
             world.player.set_autopilot(self._autopilot_enabled)
+            self._control.manual_gear_shift = True
+            self._control.gear = 1
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
             self._autopilot_enabled = False
@@ -453,6 +456,7 @@ class DualControl(object):
 
         self._joystick = pygame.joystick.Joystick(0)
         self._joystick.init()
+        print("Initializing Joystick : " + self._joystick.get_name())
 
         self._parser = ConfigParser()
         self._parser.read('wheel_config.ini')
@@ -464,6 +468,7 @@ class DualControl(object):
         self._reverse_idx = int(self._parser.get(self._joystick.get_name(), 'reverse'))
         self._handbrake_idx = int(
             self._parser.get(self._joystick.get_name(), 'handbrake'))
+        
 
     def parse_events(self, client, world, clock):
         for event in pygame.event.get():
@@ -482,6 +487,10 @@ class DualControl(object):
                     self._control.gear = 1 if self._control.reverse else -1
                 elif event.button == 23:
                     world.camera_manager.next_sensor()
+                elif self._control.manual_gear_shift and event.button == 6:
+                    self._control.gear = max(-1, self._control.gear - 1)
+                elif self._control.manual_gear_shift and event.button == 7:
+                    self._control.gear = self._control.gear + 1
 
             elif event.type == pygame.KEYUP:
                 if self._is_quit_shortcut(event.key):
@@ -588,8 +597,10 @@ class DualControl(object):
 
         # Custom function to map range of inputs [1, -1] to outputs [0, 1] i.e 1 from inputs means nothing is pressed
         # For the steering, it seems fine as it is
-        K1 = 1.0  # 0.55
-        steerCmd = K1 * math.tan(1.1 * jsInputs[self._steer_idx])
+        #K1 = 0.25  # 0.55
+        K1 = 0.25
+        #steerCmd = K1 *(1 * jsInputs[self._steer_idx])
+        steerCmd = K1 * math.pow(1 * jsInputs[self._steer_idx],2)*(-1 if jsInputs[self._steer_idx]<0 else 1)
 
         K2 = 1.6  # 1.6
         throttleCmd = K2 + (2.05 * math.log10(
@@ -655,7 +666,7 @@ class HUD(object):
         self.server_fps = 0
         self.frame_number = 0
         self.simulation_time = 0
-        self._show_info = True
+        self._show_info = False
         self._info_text = []
         self._server_clock = pygame.time.Clock()
 
@@ -703,7 +714,8 @@ class HUD(object):
                 ('Reverse:', c.reverse),
                 ('Hand brake:', c.hand_brake),
                 ('Manual:', c.manual_gear_shift),
-                'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear)]
+                'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
+                ('RPM:', c.rpm,0.0,100.0)]
         elif isinstance(c, carla.WalkerControl):
             self._info_text += [
                 ('Speed:', c.speed, 0.0, 5.556),
@@ -768,7 +780,7 @@ class HUD(object):
                     surface = self._font_mono.render(item, True, (255, 255, 255))
                     display.blit(surface, (8, v_offset))
                 v_offset += 18
-        self._notifications.render(display)
+        #self._notifications.render(display)
         self.help.render(display)
 
 
@@ -864,7 +876,7 @@ class CollisionSensor(object):
         self.hud.notification('Collision with %r' % actor_type)
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
-        self.world.noise.new_impact(intensity)
+        self.world.noise.new_impact(self.world.noise.velocity)
         self.history.append((event.frame_number, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
@@ -939,13 +951,13 @@ class CameraManager(object):
         self.recording = False
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         #Attachment = carla.AttachmentType
-        self.fov = 70
-        self.fov_offset = 2
-        self.side_offset=0.35
+        self.fov = 45
+        self.fov_offset = 0.9
+        self.side_offset=0.36
         self._camera_transforms =([
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.2),carla.Rotation(yaw=-self.fov - self.fov_offset)),
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.2)),
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.2),carla.Rotation(yaw=+self.fov + self.fov_offset))
+                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15),carla.Rotation(yaw=-self.fov - self.fov_offset,roll=0)),
+                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15)),
+                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15),carla.Rotation(yaw=+self.fov + self.fov_offset,roll =0))
                 ],
                 [
                     carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.2),carla.Rotation(yaw=-self.fov - self.fov_offset)),
@@ -1065,8 +1077,8 @@ class Mirror(object):
             bp = bp_library.find('sensor.camera.rgb')
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
-            bp.set_attribute('fov','70')
-            bp.set_attribute('sensor_tick',str(1.0/20))
+            bp.set_attribute('fov','120')
+            bp.set_attribute('sensor_tick',str(1.0/10))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1076,11 +1088,11 @@ class Mirror(object):
                     attachment_type=carla.AttachmentType.Rigid)
             #weak_self = weakref.ref(self)
             self.sensor.listen(lambda image: Mirror._parse_image(self, image))
-            self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1)
+            self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1, tcp_nodelay=True)
         if(self.debug_OnScreenRender):
             self.surface = pygame.Surface(self.dim)
             self.surface.fill((0,0,0,0))
-            self.sub = rospy.Subscriber(topic[1],Image,self.callback)
+            self.sub = rospy.Subscriber(topic[1],Image,self.callback, queue_size=1, tcp_nodelay=True)
 
     def callback(self,img_msg):
         #print('Image received')
@@ -1122,6 +1134,7 @@ def game_loop(args):
 
     pygame.init()
     pygame.font.init()
+    pygame.mouse.set_visible(False)
     world = None
 
     try:

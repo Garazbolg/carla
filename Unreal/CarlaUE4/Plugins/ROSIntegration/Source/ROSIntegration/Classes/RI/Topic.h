@@ -57,7 +57,7 @@ protected:
 
 	UTexture2D* InitDynamicTexture(uint32 Width, uint32 Height);
 
-	void UpdateTextureRegions(UTexture2D* Texture, uint32 width, uint32 height, uint32 colorSize, uint8* SrcData);
+	void UpdateTextureRegions(UTexture2D* Texture, uint32 width, uint32 height, uint32 colorSize, const uint8* SrcData);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ROS)
 	void OnConstruct();
@@ -108,9 +108,10 @@ private:
 	class Impl;
 	Impl *_Implementation;
 
+	UPROPERTY()
 	UTexture2D *m_pDynamicTexture = nullptr;
 	uint8 *m_pDataBuffer = nullptr;
-	uint32 m_pImageWidth = 320;
-	uint32 m_pImageHeight = 240;
+	uint32 m_pImageWidth = 640;
+	uint32 m_pImageHeight = 400;
 	TSharedPtr<ROSMessages::sensor_msgs::Image,ESPMode::NotThreadSafe> ConcreteImageMessage;
 };
