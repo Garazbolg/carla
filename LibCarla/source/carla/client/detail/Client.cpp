@@ -10,10 +10,12 @@
 #include "carla/Version.h"
 #include "carla/client/TimeoutException.h"
 #include "carla/rpc/ActorDescription.h"
+#include "carla/rpc/BoneTransformData.h"
 #include "carla/rpc/Client.h"
 #include "carla/rpc/DebugShape.h"
 #include "carla/rpc/Response.h"
 #include "carla/rpc/VehicleControl.h"
+#include "carla/rpc/WalkerBoneControl.h"
 #include "carla/rpc/WalkerControl.h"
 #include "carla/streaming/Client.h"
 
@@ -50,18 +52,18 @@ namespace detail {
           worker_threads > 0u ? worker_threads : std::thread::hardware_concurrency());
     }
 
-    template <typename... Args>
-    auto RawCall(const std::string &function, Args &&... args) {
+    template <typename ... Args>
+    auto RawCall(const std::string &function, Args && ... args) {
       try {
-        return rpc_client.call(function, std::forward<Args>(args)...);
+        return rpc_client.call(function, std::forward<Args>(args) ...);
       } catch (const ::rpc::timeout &) {
         throw_exception(TimeoutException(endpoint, GetTimeout()));
       }
     }
 
-    template <typename T, typename... Args>
-    auto CallAndWait(const std::string &function, Args &&... args) {
-      auto object = RawCall(function, std::forward<Args>(args)...);
+    template <typename T, typename ... Args>
+    auto CallAndWait(const std::string &function, Args && ... args) {
+      auto object = RawCall(function, std::forward<Args>(args) ...);
       using R = typename carla::rpc::Response<T>;
       auto response = object.template as<R>();
       if (response.HasError()) {
@@ -70,10 +72,10 @@ namespace detail {
       return Get(response);
     }
 
-    template <typename... Args>
-    void AsyncCall(const std::string &function, Args &&... args) {
+    template <typename ... Args>
+    void AsyncCall(const std::string &function, Args && ... args) {
       // Discard returned future.
-      rpc_client.async_call(function, std::forward<Args>(args)...);
+      rpc_client.async_call(function, std::forward<Args>(args) ...);
     }
 
     time_duration GetTimeout() const {
@@ -134,6 +136,10 @@ namespace detail {
     return _pimpl->CallAndWait<rpc::MapInfo>("get_map_info");
   }
 
+  std::vector<uint8_t> Client::GetNavigationMesh() const {
+    return _pimpl->CallAndWait<std::vector<uint8_t>>("get_navigation_mesh");
+  }
+
   std::vector<std::string> Client::GetAvailableMaps() {
     return _pimpl->CallAndWait<std::vector<std::string>>("get_available_maps");
   }
@@ -150,8 +156,8 @@ namespace detail {
     return _pimpl->CallAndWait<rpc::EpisodeSettings>("get_episode_settings");
   }
 
-  void Client::SetEpisodeSettings(const rpc::EpisodeSettings &settings) {
-    _pimpl->AsyncCall("set_episode_settings", settings);
+  uint64_t Client::SetEpisodeSettings(const rpc::EpisodeSettings &settings) {
+    return _pimpl->CallAndWait<uint64_t>("set_episode_settings", settings);
   }
 
   rpc::WeatherParameters Client::GetWeatherParameters() {
@@ -242,6 +248,10 @@ namespace detail {
     _pimpl->AsyncCall("apply_control_to_walker", walker, control);
   }
 
+  void Client::ApplyBoneControlToWalker(rpc::ActorId walker, const rpc::WalkerBoneControl &control) {
+    _pimpl->AsyncCall("apply_bone_control_to_walker", walker, control);
+  }
+
   void Client::SetTrafficLightState(
       rpc::ActorId traffic_light,
       const rpc::TrafficLightState traffic_light_state) {
@@ -322,8 +332,8 @@ namespace detail {
     return result.as<std::vector<rpc::CommandResponse>>();
   }
 
-  void Client::SendTickCue() {
-    _pimpl->AsyncCall("tick_cue");
+  uint64_t Client::SendTickCue() {
+    return _pimpl->CallAndWait<uint64_t>("tick_cue");
   }
 
 } // namespace detail
