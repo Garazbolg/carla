@@ -77,6 +77,8 @@ namespace detail {
 
     rpc::MapInfo GetMapInfo();
 
+    std::vector<uint8_t> GetNavigationMesh() const;
+
     std::vector<std::string> GetAvailableMaps();
 
     std::vector<rpc::ActorDefinition> GetActorDefinitions();
@@ -85,7 +87,7 @@ namespace detail {
 
     rpc::EpisodeSettings GetEpisodeSettings();
 
-    void SetEpisodeSettings(const rpc::EpisodeSettings &settings);
+    uint64_t SetEpisodeSettings(const rpc::EpisodeSettings &settings);
 
     rpc::WeatherParameters GetWeatherParameters();
 
@@ -205,7 +207,7 @@ namespace detail {
         std::vector<rpc::Command> commands,
         bool do_tick_cue);
 
-    void SendTickCue();
+    uint64_t SendTickCue();
 
   private:
 
