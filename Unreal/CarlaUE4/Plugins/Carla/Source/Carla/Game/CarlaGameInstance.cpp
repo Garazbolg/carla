@@ -9,7 +9,7 @@
 
 #include "Carla/Settings/CarlaSettings.h"
 
-UCarlaGameInstance::UCarlaGameInstance() {
+UCarlaGameInstance::UCarlaGameInstance() : UROSIntegrationGameInstance(){
   CarlaSettings = CreateDefaultSubobject<UCarlaSettings>(TEXT("CarlaSettings"));
   check(CarlaSettings != nullptr);
   CarlaSettings->LoadSettings();
