@@ -67,6 +67,7 @@ public:
 
 	bool Unsubscribe()
 	{
+		FDebug::DumpStackTraceToLog();
 		if (!_ROSTopic) {
 			UE_LOG(LogROS, Error, TEXT("Rostopic hasn't been initialized before Unsubscribe() call"));
 			return false;
@@ -210,6 +211,7 @@ bool UTopic::Subscribe(std::function<void(TSharedPtr<FROSBaseMsg>)> func)
 
 bool UTopic::Unsubscribe()
 {
+	UE_LOG(LogROS,Error,TEXT("UTopic Unsubscribe"));
 	_State.Subscribed = false;
 	if(m_pDataBuffer != nullptr)
 		FMemory::Free(m_pDataBuffer);
@@ -237,6 +239,7 @@ void UTopic::Init(UROSIntegrationCore *Ric, FString Topic, FString MessageType, 
 {
 	_ROSIntegrationCore = Ric;
 	_Implementation->Init(Ric, Topic, MessageType, QueueSize);
+	UObjectBaseUtility::AddToRoot();
 }
 
 void UTopic::MarkAsDisconnected()
@@ -276,7 +279,6 @@ FString UTopic::GetDetailedInfoInternal() const
 
 void UTopic::Init(const FString& TopicName, EMessageType MessageType, int32 QueueSize)
 {
-	UE_LOG(LogROS,Log,TEXT("Init"))
 	_State.Blueprint = true;
 	_State.BlueprintMessageType = MessageType;
 	if(GWorld)
@@ -363,7 +365,7 @@ bool UTopic::Subscribe()
 					{
 						TWeakPtr<UTopic, ESPMode::ThreadSafe> SelfPtr(_SelfPtr);
 
-						auto IMAGE = ConcreteImageMessage;
+						auto IMAGE = StaticCastSharedPtr<ROSMessages::sensor_msgs::Image>(ConcreteImageMessage);
 						AsyncTask(ENamedThreads::GameThread, [this, IMAGE, SelfPtr]()
 						{
 							if (!SelfPtr.IsValid()) return;
@@ -430,7 +432,7 @@ UTexture2D* UTopic::InitDynamicTexture(uint32 Width, uint32 Height)
 	return m_pDynamicTexture;
 }
 
-void UTopic::UpdateTextureRegions(UTexture2D* Texture, uint32 width, uint32 height, uint32 colorSize, uint8* SrcData)
+void UTopic::UpdateTextureRegions(UTexture2D* Texture, uint32 width, uint32 height, uint32 colorSize, const uint8* SrcData)
 {
 	if (Texture->Resource)
 	{
@@ -439,7 +441,7 @@ void UTopic::UpdateTextureRegions(UTexture2D* Texture, uint32 width, uint32 heig
 			FTexture2DResource* Texture2DResource;
 			FUpdateTextureRegion2D Region;
 			uint32 SrcPitch;
-			uint8* SrcData;
+			const uint8* SrcData;
 		};
 
 		FUpdateTextureRegionsData* RegionData = new FUpdateTextureRegionsData;

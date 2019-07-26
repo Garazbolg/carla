@@ -101,5 +101,9 @@
 			"Name": "eSoftThings_Simulator",
 			"Enabled": false
 		}
+	],
+	"TargetPlatforms": [
+		"LinuxNoEditor",
+		"WindowsNoEditor"
 	]
 }
