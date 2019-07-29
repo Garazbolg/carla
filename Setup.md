@@ -91,44 +91,45 @@
         echo "export PYTHONPATH=$PYTHONPATH" >> ~/.bashrc
         source ~/.bashrc
     cd ../../..
-cd ..
+    cd ..
 
-cd UnrealEngine
-./GenerateProjectFiles.sh -project="$PWD/../Carla/carla/Unreal/CarlaUE4/CarlaUE4.uproject" -game -engin -vscode
+# Generate Unreal Project
+    cd UnrealEngine
+    ./GenerateProjectFiles.sh -project="$PWD/../Carla/carla/Unreal/CarlaUE4/CarlaUE4.uproject" -game -engin -vscode
 
 # Make sure the computer can communicate with the board using :
-# ping hostname
-# netcat -l 1234
-# or editing the /etc/hosts if needed
+    #ping hostname
+    #netcat -l 1234
+    #or editing the /etc/hosts if needed
 
 # To open the unreal project :
     cd ~/eSoftThings_simulation/carla/Unreal/CarlaUE4 && ue $PWD/CarlaUE4.uproject
 
 # To launch the game :
-    #Terminal 1
+## Terminal 1
     roslaunch rosbridge_server rosbridge_tcp.launch bson_only_mode:=True
 
-    #Terminal 2
+## Terminal 2
     cd ~/eSoftThings_simulation/carla/Dist/$(ls)/LinuxNoEditor && ./CarlaUE4.sh -ResX=10 -ResY=10 -benchmark
 
-    #Terminal 3
-    # For 1080p
+## Terminal 3
+### For 1080p
     cd ~/eSoftThings_simulation/ros/ros-bridge/catkin_ws && source devel/setup.bash && cd ~/eSoftThings_simulation/carla/PythonAPI/examples && python -O manual_control.py --res=5760x1080 --fullscreen --mirror_size=640x400 --wheel
-    # For 720p
+### For 720p
     cd ~/eSoftThings_simulation/ros/ros-bridge/catkin_ws && source devel/setup.bash && cd ~/eSoftThings_simulation/carla/PythonAPI/examples && python -O manual_control.py --res=3840x720 --fullscreen --mirror_size=640x400 --wheel
 
-    #Terminal 4
+## Terminal 4
     cd ~/eSoftThings_simulation/carla/PythonAPI/examples && ./spawn_npc.py -n 100 -w 50
 
 # If pcm audio bugs : 
-    # code /usr/share/alsa/alsa.conf
+    code /usr/share/alsa/alsa.conf
 
-    # For "Unknown PCM cards.pcm.*" error
-        # Change the problematic
-        # pcm.* cards.pcm.* 
-        # to 
-        # pcm.* cards.pcm.default
+## For "Unknown PCM cards.pcm.*" error
+    # Change the problematic
+    # pcm.* cards.pcm.* 
+    # to 
+    # pcm.* cards.pcm.default
 
-    # For "Found no matching channel map" error
-        # Comment the lines
-        # pcm.surround??
+## For "Found no matching channel map" error
+    # Comment the lines
+    # pcm.surround??
