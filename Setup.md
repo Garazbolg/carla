@@ -1,11 +1,11 @@
-#First
-# install VisualStudioCode by downloading the package from 
-# https://code.visualstudio.com/download#
-# and install it
+# How to Install
+    #First install VisualStudioCode by downloading the package from 
+    #https://code.visualstudio.com/download#
+    #and install it
 
-#Create the directory
-mkdir eSoftThings_simulation
-cd eSoftThings_simulation
+# Create the directory
+    mkdir eSoftThings_simulation
+    cd eSoftThings_simulation
 
 # Tools
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -23,9 +23,10 @@ cd eSoftThings_simulation
     sudo apt-get install ros-melodic-catkin
     sudo apt-get install portaudio19-dev python-all-dev
     pip install pyaudio
-sudo apt-get update
+    sudo apt-get update
 
-#Unreal
+# Unreal
+
     mkdir UnrealEngine
     git clone https://github.com/EpicGames/UnrealEngine.git UnrealEngine
         #Vulkan
@@ -37,9 +38,9 @@ sudo apt-get update
     export UE4_ROOT= $PWD
     ./Setup.sh && ./GenerateProjectFiles.sh && make
     alias ue="$PWD/Engine/Binaries/Linux/UE4Editor"
-cd ..
+    cd ..
 
-#ros
+# ros
     sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
     sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
     sudo apt update
@@ -62,10 +63,10 @@ cd ..
     catkin_make
     echo "source $PWD/devel/setup.bash" >> ~/.bashrc
     source ~/.bashrc
-cd ../..
+    cd ../..
 
 
-#Carla
+# Carla
     mkdir carla
     git clone https://github.com/Garazbolg/carla.git carla
     cd carla
@@ -100,10 +101,10 @@ cd UnrealEngine
 # netcat -l 1234
 # or editing the /etc/hosts if needed
 
-#To open the unreal project :
+# To open the unreal project :
     cd ~/eSoftThings_simulation/carla/Unreal/CarlaUE4 && ue $PWD/CarlaUE4.uproject
 
-#To launch the game :
+# To launch the game :
     #Terminal 1
     roslaunch rosbridge_server rosbridge_tcp.launch bson_only_mode:=True
 
@@ -119,20 +120,15 @@ cd UnrealEngine
     #Terminal 4
     cd ~/eSoftThings_simulation/carla/PythonAPI/examples && ./spawn_npc.py -n 100 -w 50
 
+# If pcm audio bugs : 
+    # code /usr/share/alsa/alsa.conf
 
-#If pcm audio bugs : 
-   # code /usr/share/alsa/alsa.conf
-
-    # Unknown PCM cards.pcm.*
+    # For "Unknown PCM cards.pcm.*" error
         # Change the problematic
         # pcm.* cards.pcm.* 
         # to 
         # pcm.* cards.pcm.default
 
-    # Found no matching channel map
+    # For "Found no matching channel map" error
         # Comment the lines
         # pcm.surround??
-
-    
-
-
