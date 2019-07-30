@@ -96,10 +96,6 @@
 		{
 			"Name": "SteamVR",
 			"Enabled": false
-		},
-		{
-			"Name": "eSoftThings_Simulator",
-			"Enabled": false
 		}
 	],
 	"TargetPlatforms": [
