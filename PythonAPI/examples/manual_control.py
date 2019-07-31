@@ -125,6 +125,7 @@ try:
     from pygame.locals import K_r
     from pygame.locals import K_s
     from pygame.locals import K_w
+    from pygame.locals import K_l
     from pygame.locals import K_MINUS
     from pygame.locals import K_EQUALS
 except ImportError:
@@ -146,6 +147,8 @@ from cv_bridge import CvBridge,CvBridgeError
 cv_bridge = CvBridge()
 
 import NoiseGenerator
+
+running = True
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -182,8 +185,10 @@ class World(object):
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
+
         self._actor_filter = args.filter
         self._gamma = args.gamma
+
         self.vehicle_index = 14
         self.mixed_reality_mode = False
         self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
@@ -201,7 +206,7 @@ class World(object):
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         # Get a specific blueprint selected by ID.
-        blueprint = self.world.get_blueprint_library().filter(self._actor_filter)[self.vehicle_index]
+        blueprint = next( x for x in self.world.get_blueprint_library().filter(self._actor_filter) if x.id.endswith('esoft.realistic'))
         #for bp in self.world.get_blueprint_library().filter(self._actor_filter):
             #print(str(bp.id))
         blueprint.set_attribute('role_name', self.actor_role_name)
@@ -309,6 +314,7 @@ class KeyboardControl(object):
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, client, world, clock):
+        global running
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True
@@ -321,6 +327,8 @@ class KeyboardControl(object):
                     world.hud.toggle_info()
                 elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
                     world.hud.help.toggle()
+                elif event.key == K_l:
+                    running = not running
                 elif event.key == K_TAB:
                     world.camera_manager.toggle_camera()
                 elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
@@ -471,20 +479,23 @@ class DualControl(object):
         self._reverse_idx = int(self._parser.get(self._joystick.get_name(), 'reverse'))
         self._handbrake_idx = int(
             self._parser.get(self._joystick.get_name(), 'handbrake'))
-        
+        self._mixed_idx = int(self._parser.get(self._joystick.get_name(), 'mixed'))
+        self._hud_idx = int(self._parser.get(self._joystick.get_name(), 'hud'))
+        self._left_right_idx = int(self._parser.get(self._joystick.get_name(), 'left_right'))
+        self._weather_idx = int(self._parser.get(self._joystick.get_name(), 'weather'))
 
     def parse_events(self, client, world, clock):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.JOYBUTTONDOWN:
-                if event.button == 0: #Switch Mixed/Virtual
+                if event.button == self._mixed_idx: #Switch Mixed/Virtual
                     world.mixed_reality_toggle()
-                elif event.button == 1:
+                elif event.button == self._hud_idx:
                     world.hud.toggle_info()
-                elif event.button == 2: #Switch Left/Right
+                elif event.button == self._left_right_idx: #Switch Left/Right
                     world.camera_manager.toggle_camera()
-                elif event.button == 3:
+                elif event.button == self._weather_idx:
                     world.next_weather()
                 elif event.button == self._reverse_idx:
                     self._control.gear = 1 if self._control.reverse else -1
@@ -504,6 +515,8 @@ class DualControl(object):
                     world.hud.toggle_info()
                 elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
                     world.hud.help.toggle()
+                elif event.key == K_l:
+                    running = not running
                 elif event.key == K_TAB:
                     world.camera_manager.toggle_camera()
                 elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
@@ -717,8 +730,7 @@ class HUD(object):
                 ('Reverse:', c.reverse),
                 ('Hand brake:', c.hand_brake),
                 ('Manual:', c.manual_gear_shift),
-                'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
-                ('RPM:', c.rpm,0.0,100.0)]
+                'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear)]
         elif isinstance(c, carla.WalkerControl):
             self._info_text += [
                 ('Speed:', c.speed, 0.0, 5.556),
@@ -986,6 +998,7 @@ class CameraManager(object):
             bp.set_attribute('fov',str(self.fov))
             if bp.has_attribute('gamma'):
                 bp.set_attribute('gamma', str(gamma_correction))
+
             item.append(bp)
         self.index = None
 
@@ -1082,7 +1095,7 @@ class Mirror(object):
             bp = bp_library.find('sensor.camera.rgb')
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
-            bp.set_attribute('fov','120')
+            bp.set_attribute('fov','60')
             bp.set_attribute('sensor_tick',str(1.0/10))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
@@ -1132,7 +1145,6 @@ class Mirror(object):
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
-
 def game_loop(args):
     
     rospy.init_node('carla_manual_control', anonymous=True)
@@ -1165,7 +1177,8 @@ def game_loop(args):
                 return
             world.tick(clock)
             world.render(display)
-            pygame.display.flip()
+            if(running):
+                pygame.display.flip()
 
     finally:
 

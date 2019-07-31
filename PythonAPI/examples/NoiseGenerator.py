@@ -11,9 +11,10 @@ def Clamp01(value):
         return value
 
 class Impact(object):
-    MAX_POWER = 100
-    MAX_DURATION = 1.5
+    MAX_POWER = 200
+    MAX_DURATION = 2
     FADE_POWER = 2
+    AMP = 2
 
     def __init__(self,power):
         power = 0 if power < 0 else power
@@ -31,7 +32,7 @@ class Impact(object):
         return (current_time - self.time)<self.duration
 
     def GetAmplitude(self, current_time):
-        return math.pow(1-Clamp01((current_time - self.time)/self.duration),Impact.FADE_POWER) * self.power
+        return Impact.AMP * math.pow(1-Clamp01((current_time - self.time)/self.duration),Impact.FADE_POWER) * self.power
 
 class SoundSynth(object):
     def __init__(self,synthfnc,ampfnc,bitrate,pya,fpb):
@@ -78,13 +79,13 @@ class SoundManager(object):
 
         #Speed -----
         self.velocity = 0.0
-        self.MAX_VELOCITY = 200.0
-        self.VELOCITY_MAX_AMPLITUDE = 1.0
+        self.MAX_VELOCITY = 300
+        self.VELOCITY_MAX_AMPLITUDE = 0.7
         self.NoiseSpeed = SoundSynth(self.speedSynth,self.speedAmp,1024,self.pya,128)
 
         #Warning ---
         self.warningActive = False
-        self.warningFrequency = 880
+        self.warningFrequency = 110
         self.warningAmpliude = 0.5
         self.SawWarning = SoundSynth(self.warningSynth,self.warningAmp,4069,self.pya,512)
 
@@ -130,6 +131,7 @@ class SoundManager(object):
 
     #Warning ------------------------------------------------------------
     def warningSynth(self,t):
+        #return random.random()*2-1
         d=t*self.warningFrequency
         return (d-math.floor(d))*2-1
     def warningAmp(self,t):
