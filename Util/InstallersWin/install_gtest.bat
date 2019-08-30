@@ -61,7 +61,7 @@ if not exist "%GT_BUILD_DIR%" (
 cd "%GT_BUILD_DIR%"
 echo %FILE_N% Generating build...
 
-cmake .. -G "Visual Studio 15 2017 Win64"^
+cmake .. -G "Visual Studio 16 2019"^
     -DCMAKE_BUILD_TYPE=Release^
     -DCMAKE_CXX_FLAGS_RELEASE="/MD /MP"^
     -DCMAKE_INSTALL_PREFIX=%GT_INSTALL_DIR%^

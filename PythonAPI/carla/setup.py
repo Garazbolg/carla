@@ -91,7 +91,8 @@ def get_libcarla_extensions():
             '/experimental:external', '/external:I', 'dependencies/include/system',
             '/DBOOST_ALL_NO_LIB', '/DBOOST_PYTHON_STATIC_LIB',
             '/DBOOST_ERROR_CODE_HEADER_ONLY', '/D_WIN32_WINNT=0x0501',
-            '/DLIBCARLA_WITH_PYTHON_SUPPORT', '-DLIBCARLA_IMAGE_WITH_PNG_SUPPORT=true']
+            '/DLIBCARLA_WITH_PYTHON_SUPPORT', '-DLIBCARLA_IMAGE_WITH_PNG_SUPPORT=true',
+            '/std:c++17']
     else:
         raise NotImplementedError
 
@@ -108,7 +109,7 @@ def get_libcarla_extensions():
             libraries=libraries,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
-            language='c++14',
+            language='c++17',
             depends=depends)
 
     print('compiling:\n  - %s' % '\n  - '.join(sources))

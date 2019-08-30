@@ -3,6 +3,8 @@
 //
 // This work is licensed under the terms of the MIT license.
 // For a copy, see <https://opensource.org/licenses/MIT>.
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <carla/Memory.h>
 #include <carla/PythonUtil.h>

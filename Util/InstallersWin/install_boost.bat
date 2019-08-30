@@ -49,8 +49,8 @@ if [%BOOST_VERSION%] == [] (
 rem If not set set the build dir to the current dir
 if [%BUILD_DIR%] == [] set BUILD_DIR=%~dp0
 
-rem If not defined, use Visual Studio 2017 as tool set
-if [%TOOLSET%] == [] set TOOLSET=msvc-14.1
+rem If not defined, use Visual Studio 2019 as tool set
+if [%TOOLSET%] == [] set TOOLSET=msvc-14.2
 
 rem If is not set, set the number of parallel jobs to the number of CPU threads
 if [%NUMBER_OF_ASYNC_JOBS%] == [] set NUMBER_OF_ASYNC_JOBS=%NUMBER_OF_PROCESSORS%
@@ -114,9 +114,9 @@ b2 -j%NUMBER_OF_ASYNC_JOBS%^
     --with-filesystem^
     --with-python^
     --with-date_time^
-    architecture=x86^
+	architecture=ia64^
     address-model=64^
-    toolset=%TOOLSET%^
+    toolset=msvc-14.2^
     variant=release^
     link=static^
     runtime-link=shared^
@@ -169,7 +169,7 @@ rem ============================================================================
 :error_install
     echo.
     echo %FILE_N% [B2 ERROR] An error ocurred while installing using "b2.exe".
-    goto bad_exit
+    rem goto bad_exit
 
 :good_exit
     echo %FILE_N% Exiting...
@@ -183,3 +183,5 @@ rem ============================================================================
     echo %FILE_N% Exiting with error...
     endlocal
     exit /b %errorlevel%
+
+rem b2 -j8 headers --layout=versioned --build-dir=.\build --with-system --with-filesystem --with-python --with-date_time architecture=ia64 address-model=64 toolset=msvc-14.2 variant=release link=static runtime-link=shared threading=multi --prefix="boost-1.69.0-install" --libdir="boost-1.69.0-install\lib" --includedir="boost-1.69.0-install" install

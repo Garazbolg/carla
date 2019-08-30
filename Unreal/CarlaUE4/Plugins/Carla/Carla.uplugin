@@ -27,10 +27,6 @@
 		{
 			"Name": "PhysXVehicles",
 			"Enabled": true
-		},
-		{
-			"Name":"ROSIntegration",
-			"Enabled":true
 		}
 	]
 }

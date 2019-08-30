@@ -8,7 +8,9 @@ public class CarlaUE4 : ModuleRules
 	{
     PrivatePCHHeaderFile = "CarlaUE4.h";
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore","Carla","ROSIntegration" });
+        bEnableUndefinedIdentifierWarnings = false;
+
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore","Carla" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

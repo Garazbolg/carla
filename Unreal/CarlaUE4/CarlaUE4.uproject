@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{0004A013-08D6-EA97-9BB7-064A9C1A95A4}",
+	"EngineAssociation": "4.22",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -12,8 +12,7 @@
 				"Engine",
 				"PhysXVehicles",
 				"Carla",
-				"CoreUObject",
-				"ROSIntegration"
+				"CoreUObject"
 			]
 		}
 	],

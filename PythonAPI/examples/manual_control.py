@@ -137,16 +137,19 @@ except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
 
-import rospy
+#import rospy
 import numpy
-from sensor_msgs.msg import Image
-from std_msgs.msg import String
-import carla_ros_bridge
-from carla_ros_bridge import *
-from cv_bridge import CvBridge,CvBridgeError
-cv_bridge = CvBridge()
+#from sensor_msgs.msg import Image
+#from std_msgs.msg import String
+#import carla_ros_bridge
+#from carla_ros_bridge import *
+#from cv_bridge import CvBridge,CvBridgeError
+#cv_bridge = CvBridge()
+import imageio
 
 import NoiseGenerator
+import UDP
+UDP.StringSender.init()
 
 running = True
 
@@ -189,12 +192,15 @@ class World(object):
         self._actor_filter = args.filter
         self._gamma = args.gamma
 
+        self.V3H_IP = "192.168.0.20"
+
         self.vehicle_index = 14
         self.mixed_reality_mode = False
-        self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
+        #self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
 
         self.noise = NoiseGenerator.SoundManager()
-        self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
+        self.warningReceiver = UDP.Receiver(5584,32,self.receive_noise_message)
+        #self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
 
         self.restart()
         self.world.on_tick(hud.on_world_tick)
@@ -241,8 +247,8 @@ class World(object):
         self.hud.notification(actor_type)
         #Setup the mirrors.
         self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/0','/eSoft/Mirror/OUT/0'),(0,-1,1),(0,225,0),not self.mixed_reality_mode))
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),('/eSoft/Mirror/IN/1','/eSoft/Mirror/OUT/1'),(0, 1,1),(0,135,0),not self.mixed_reality_mode))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/",(0,-1,1),(0,225,0),not self.mixed_reality_mode))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -255,11 +261,15 @@ class World(object):
         if value is None :
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
-        self.mixed_publisher.publish(String("1" if self.mixed_reality_mode else "0"))
+        #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
+        UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),"192.168.1.255",5582)
+        #print(str(UDP.StringSender.sock))
+        #UDP.StringSender.sock = UDP.StringSender.sock +1
+        #self.mixed_publisher.publish(String("1" if self.mixed_reality_mode else "0"))
         self.restart()
 
     def receive_noise_message(self, msg):
-        self.noise.warningActive = True if msg.data == '1' else 0
+        self.noise.warningActive = True if msg.decode('utf-8') != "0" else False
 
     def tick(self, clock):
         self.hud.tick(self, clock)
@@ -292,6 +302,7 @@ class World(object):
         for mirror in self.mirrors:
             mirror.destroy()
         self.mirrors = []
+        self.warningReceiver.Stop()
 
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
@@ -483,6 +494,8 @@ class DualControl(object):
         self._hud_idx = int(self._parser.get(self._joystick.get_name(), 'hud'))
         self._left_right_idx = int(self._parser.get(self._joystick.get_name(), 'left_right'))
         self._weather_idx = int(self._parser.get(self._joystick.get_name(), 'weather'))
+        self._gear_up_idx   = int(self._parser.get(self._joystick.get_name(), 'gear_up'))
+        self._gear_down_idx = int(self._parser.get(self._joystick.get_name(), 'gear_down'))
 
     def parse_events(self, client, world, clock):
         for event in pygame.event.get():
@@ -501,9 +514,9 @@ class DualControl(object):
                     self._control.gear = 1 if self._control.reverse else -1
                 elif event.button == 23:
                     world.camera_manager.next_sensor()
-                elif self._control.manual_gear_shift and event.button == 6:
+                elif self._control.manual_gear_shift and event.button == self._gear_down_idx:
                     self._control.gear = max(-1, self._control.gear - 1)
-                elif self._control.manual_gear_shift and event.button == 7:
+                elif self._control.manual_gear_shift and event.button == self._gear_up_idx:
                     self._control.gear = self._control.gear + 1
 
             elif event.type == pygame.KEYUP:
@@ -613,10 +626,10 @@ class DualControl(object):
 
         # Custom function to map range of inputs [1, -1] to outputs [0, 1] i.e 1 from inputs means nothing is pressed
         # For the steering, it seems fine as it is
-        #K1 = 0.25  # 0.55
-        K1 = 0.25
-        #steerCmd = K1 *(1 * jsInputs[self._steer_idx])
-        steerCmd = K1 * math.pow(1 * jsInputs[self._steer_idx],2)*(-1 if jsInputs[self._steer_idx]<0 else 1)
+        K1 = 0.55
+        #K1 = 0.25
+        steerCmd = K1 *(1 * jsInputs[self._steer_idx])
+        #steerCmd = K1 * math.pow(1 * jsInputs[self._steer_idx],2)*(-1 if jsInputs[self._steer_idx]<0 else 1)
 
         K2 = 1.6  # 1.6
         throttleCmd = K2 + (2.05 * math.log10(
@@ -672,7 +685,7 @@ class HUD(object):
         self.dim = (width, height)
         self.mDim = mDim
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
-        fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
+        fonts = pygame.font.get_fonts()
         default_font = 'ubuntumono'
         mono = default_font if default_font in fonts else fonts[0]
         mono = pygame.font.match_font(mono)
@@ -1089,6 +1102,7 @@ class Mirror(object):
         self.debug_OnScreenRender = False
         self.sensor = None
         self.view_publisher = None
+        self.file_index = 0
         if create_sensor :
             world = self._parent.get_world()
             bp_library = world.get_blueprint_library()
@@ -1106,16 +1120,16 @@ class Mirror(object):
                     attachment_type=carla.AttachmentType.Rigid)
             #weak_self = weakref.ref(self)
             self.sensor.listen(lambda image: Mirror._parse_image(self, image))
-            self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1, tcp_nodelay=True)
+            #self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1, tcp_nodelay=True)
         if(self.debug_OnScreenRender):
             self.surface = pygame.Surface(self.dim)
             self.surface.fill((0,0,0,0))
-            self.sub = rospy.Subscriber(topic[1],Image,self.callback, queue_size=1, tcp_nodelay=True)
+            #self.sub = rospy.Subscriber(topic[1],Image,self.callback, queue_size=1, tcp_nodelay=True)
 
     def callback(self,img_msg):
         #print('Image received')
-        array = np.frombuffer(cv_bridge.imgmsg_to_cv2(img_msg,'bgra8'), dtype=np.dtype("uint8"))
-        array = np.reshape(array, (self.dim[1], self.dim[0], 4)) # From 1D to 3D array (width,height,BGRA)
+        #array = np.frombuffer(cv_bridge.imgmsg_to_cv2(img_msg,'bgra8'), dtype=np.dtype("uint8"))
+        array = np.reshape(img_msg, (self.dim[1], self.dim[0], 4)) # From 1D to 3D array (width,height,BGRA)
         array = array[:, :, :3] # Gets rid of the alpha channel
         array = array[:, :, ::-1] #Reverse the color order BGR to RGB
         array = np.swapaxes(array, 0, 1)
@@ -1130,14 +1144,17 @@ class Mirror(object):
         carla_image_data_array = numpy.ndarray(
                 shape=(image.height, image.width, 4),
                 dtype=numpy.uint8, buffer=image.raw_data)
-        img_msg = cv_bridge.cv2_to_imgmsg(carla_image_data_array, 'bgra8')
-        self.view_publisher.publish(img_msg)
+        array = carla_image_data_array[:, :, :3] # Gets rid of the alpha channel
+        array = array[:, :, ::-1] #Reverse the color order BGR to RGB
+        #array = np.swapaxes(array, 0, 1)
+        #imageio.imwrite(self.topic+str(self.file_index)+".ppm",array,format='PPMRAW-FI')
+        #self.file_index=self.file_index+1
         #print('Sent')
 
     def destroy(self):
         if self.sensor is not None :
             self.sensor.destroy()
-            self.view_publisher.unregister()
+            #self.view_publisher.unregister()
 
 
 
@@ -1147,7 +1164,7 @@ class Mirror(object):
 
 def game_loop(args):
     
-    rospy.init_node('carla_manual_control', anonymous=True)
+    #rospy.init_node('carla_manual_control', anonymous=True)
 
     pygame.init()
     pygame.font.init()
@@ -1189,6 +1206,7 @@ def game_loop(args):
             world.destroy()
 
         pygame.quit()
+        return
 
 
 # ==============================================================================
@@ -1271,6 +1289,8 @@ def main():
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
+    
+    return
 
 
 if __name__ == '__main__':

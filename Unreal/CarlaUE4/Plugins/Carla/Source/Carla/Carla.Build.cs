@@ -37,8 +37,7 @@ public class Carla : ModuleRules
       {
         "Core",
         "RenderCore",
-        "RHI",
-        "ROSIntegration"
+        "RHI"
         // ... add other public dependencies that you statically link with here ...
       }
       );

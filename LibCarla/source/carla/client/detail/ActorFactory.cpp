@@ -32,7 +32,7 @@ namespace detail {
   // A deleter cannot throw exceptions; and unlike std::unique_ptr, the deleter
   // of (std|boost)::shared_ptr is invoked even if the managed pointer is null.
   struct GarbageCollector {
-    void operator()(::carla::client::Actor *ptr) const noexcept {
+    void operator()(::carla::client::Actor *ptr) const {
       if ((ptr != nullptr) && ptr->IsAlive()) {
         try {
           ptr->Destroy();
