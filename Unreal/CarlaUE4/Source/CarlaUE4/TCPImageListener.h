@@ -1,5 +1,3 @@
-// Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de Barcelona (UAB). This work is licensed under the terms of the MIT license. For a copy, see <https://opensource.org/licenses/MIT>.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,16 +5,12 @@
 
 #include <WinSock2.h>
 
-
 #include "TCPImageListener.generated.h"
 
 
 class FTCPListenerWorker;
 
 
-/**
- * 
- */
 UCLASS(Blueprintable)
 class CARLAUE4_API UTCPImageListener : public UObject
 {
@@ -60,7 +54,6 @@ private:
 	unsigned short m_port;
 
 	uint8* m_buffer = nullptr;
-	uint8* m_buffer2 = nullptr;
 
 	FTCPListenerWorker* m_thread = nullptr;
 

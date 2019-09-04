@@ -59,12 +59,6 @@ public:
 						m_parent->mutex = false;
 					}
 				}
-				//if (m_parent != nullptr && m_parent->m_messageType == EMessageType::String)
-				//{
-					//*(((char*)m_buffer) + n + 1) = '\0';
-					//FString outF = ANSI_TO_TCHAR((char*)m_buffer);
-					//UE_LOG(LogTemp, Log, TEXT("Message received (%d bytes) : %s"),n, *outF);
-				//}
 			}
 
 		}
@@ -115,7 +109,7 @@ void UUDPListener::Init(EMessageType type, int32 port, int32 bufferSize)
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Init Successfull, Spawning Thread"));
+			UE_LOG(LogTemp, Warning, TEXT("Init Successfull, Spawning Thread : (UDP,%d)"),port);
 			m_buffer = new uint8[bufferSize];
 			m_thread = new FUDPListenerWorker(this, m_sock, m_buffer, bufferSize, port);
 			m_thread->Start();
@@ -132,16 +126,13 @@ void UUDPListener::Stop()
 	}
 	if (m_sock >= 0)
 		closesocket(m_sock);
-
-	if(m_dynamicTexture != nullptr)
-		delete m_dynamicTexture;
 	
 	if (m_buffer != nullptr)
 	{
 		delete m_buffer;
 		m_buffer = nullptr;
 	}
-	//UUDPListener::ClearWinSock();
+	UUDPListener::ClearWinSock();
 }
 
 void UUDPListener::Tick()
@@ -160,43 +151,14 @@ UUDPListener::~UUDPListener()
 	{
 		m_thread->m_parent = nullptr;
 	}
-	//Stop();
-}
-
-int32 UUDPListener::SetImageSize(int32 width, int32 height,EPixelFormat pixelFormat, int32 colorSize)
-{
-	if (width > 0 && height > 0 && colorSize > 0)
-	{
-		m_width = width;
-		m_height = height;
-		m_colorSize = colorSize;
-
-		m_dynamicTexture = UTexture2D::CreateTransient(m_width, m_height, pixelFormat);
-
-		#define UpdateResource UpdateResource
-		m_dynamicTexture->UpdateResource();
-		OnImageInit(m_dynamicTexture);
-
-		return m_width * m_height * m_colorSize;
-	}
-
-	return 0;
 }
 
 void UUDPListener::Callback(unsigned short bytesRead)
 {
 	switch (m_messageType) {
-	/*case EMessageType::Bool:
-		if (bytesRead >= sizeof(bool))
-		{
-			bool outB = *m_buffer;
-			OnBoolMessage(outB);
-		}
-		break;*/
 	case EMessageType::String:
 		if (bytesRead > 0)
 		{
-			//*((char*)m_buffer + bytesRead +1) = '\0';
 			FString outF = ANSI_TO_TCHAR((char*)m_buffer);
 			OnStringMessage(outF);
 		}
@@ -209,52 +171,6 @@ void UUDPListener::Callback(unsigned short bytesRead)
 			OnIntMessage(out);
 		}
 		break;
-	/*case EMessageType::Image:
-		if (m_dynamicTexture != nullptr)
-		{
-			if (bytesRead >= m_width*m_height*m_colorSize && m_dynamicTexture->Resource)
-			{
-				//TWeakPtr<UUDPListener, ESPMode::ThreadSafe> SelfPtr(_SelfPtr);
-
-				//AsyncTask(ENamedThreads::GameThread, [this, SelfPtr]()
-					//{
-						//if (!SelfPtr.IsValid()) return;
-						struct FUpdateTextureRegionsData
-						{
-							FTexture2DResource* Texture2DResource;
-							FUpdateTextureRegion2D Region;
-							uint32 SrcPitch;
-							const uint8* SrcData;
-						};
-
-						FUpdateTextureRegionsData* RegionData = new FUpdateTextureRegionsData;
-
-						RegionData->Texture2DResource = (FTexture2DResource*)m_dynamicTexture->Resource;
-						RegionData->Region.Width = m_width;
-						RegionData->Region.Height = m_height;
-						RegionData->Region.SrcX = 0;
-						RegionData->Region.SrcY = 0;
-						RegionData->Region.DestX = 0;
-						RegionData->Region.DestY = 0;
-						RegionData->SrcPitch = m_width * m_colorSize;
-						RegionData->SrcData = m_buffer;
-
-						ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
-							[RegionData](FRHICommandListImmediate& RHICmdList)
-							{
-								RHIUpdateTexture2D(
-									RegionData->Texture2DResource->GetTexture2DRHI(),
-									0,
-									RegionData->Region,
-									RegionData->SrcPitch,
-									RegionData->SrcData
-								);
-								delete RegionData;
-							});
-					//});
-			}
-		}
-		break;*/
 	}
 }
 
