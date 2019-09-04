@@ -17,7 +17,7 @@ enum class EMessageType : uint8
 {
 	String = 0,
 	//Bool = 1,
-	Image = 2,
+	//Image = 2,
 	Int = 3
 };
 
@@ -28,15 +28,13 @@ class CARLAUE4_API UUDPListener : public UObject
 
 public:
 
-	UUDPListener();
-	UUDPListener(EMessageType type, unsigned short port, unsigned short bufferSize);
 	~UUDPListener();
 
 	UFUNCTION(BlueprintCallable, Category = "UDPTransport")
 	void Init(EMessageType type, int32 port, int32 bufferSize);
 
 	UFUNCTION(BlueprintCallable, Category = "UDPTransport")
-	void SetImageSize(int32 width, int32 height, EPixelFormat pixelFormat, int32 colorSize);
+	int32 SetImageSize(int32 width, int32 height, EPixelFormat pixelFormat, int32 colorSize);
 
 	UFUNCTION(BlueprintCallable, Category = "UDPTransport")
 	void Stop();
@@ -68,6 +66,9 @@ public:
 	bool mutex = false;
 	int bytes = 0;
 	bool messageFlag = false;
+
+	static void InitWinSock();
+	static void ClearWinSock();
 private:
 	int m_sock;
 	unsigned short m_bufferSize;
@@ -82,7 +83,8 @@ private:
 	uint32 m_colorSize;
 
 	static int nbOpenSockets;
-	static void InitWinSock();
-	static void ClearWinSock();
+
+
+	//TSharedPtr<UUDPListener, ESPMode::ThreadSafe> _SelfPtr;
 
 };

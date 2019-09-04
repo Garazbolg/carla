@@ -149,7 +149,8 @@ import imageio
 
 import NoiseGenerator
 import UDP
-UDP.StringSender.init()
+UDP.Sender.init()
+import TCP
 
 running = True
 
@@ -195,7 +196,7 @@ class World(object):
         self.V3H_IP = "192.168.0.20"
 
         self.vehicle_index = 14
-        self.mixed_reality_mode = False
+        self.mixed_reality_mode = True
         #self.mixed_publisher = rospy.Publisher("/eSoft/Mixed/Active",String,queue_size=1)
 
         self.noise = NoiseGenerator.SoundManager()
@@ -247,8 +248,9 @@ class World(object):
         self.hud.notification(actor_type)
         #Setup the mirrors.
         self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/",(0,-1,1),(0,225,0),not self.mixed_reality_mode))
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/" ,(0,-1,1),(0,225,0),not self.mixed_reality_mode,"127.0.0.1",5591))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode,"127.0.0.1",5590))
+        print("end restart")
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -262,11 +264,18 @@ class World(object):
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
         #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
-        UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),"192.168.1.255",5582)
+        #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),"192.168.1.255",5582)
+        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5582)
         #print(str(UDP.StringSender.sock))
         #UDP.StringSender.sock = UDP.StringSender.sock +1
         #self.mixed_publisher.publish(String("1" if self.mixed_reality_mode else "0"))
-        self.restart()
+
+        for mirror in self.mirrors:
+            mirror.destroy()
+        self.mirrors = []
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/" ,(0,-1,1),(0,225,0),not self.mixed_reality_mode,"127.0.0.1",5591))
+        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode,"127.0.0.1",5590))
+        #self.restart()
 
     def receive_noise_message(self, msg):
         self.noise.warningActive = True if msg.decode('utf-8') != "0" else False
@@ -1092,7 +1101,7 @@ class CameraManager(object):
 
 
 class Mirror(object):
-    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor):
+    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, ip=None, port=None):
         print('INIT MIRROR')
         self._parent = parent_actor
         self.dim = dim
@@ -1103,14 +1112,17 @@ class Mirror(object):
         self.sensor = None
         self.view_publisher = None
         self.file_index = 0
+        self.ip = ip
+        self.port = port
+        self.tcp_client = None
         if create_sensor :
             world = self._parent.get_world()
             bp_library = world.get_blueprint_library()
             bp = bp_library.find('sensor.camera.rgb')
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
-            bp.set_attribute('fov','60')
-            bp.set_attribute('sensor_tick',str(1.0/10))
+            bp.set_attribute('fov','90')
+            bp.set_attribute('sensor_tick',str(1.0/30))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1119,7 +1131,9 @@ class Mirror(object):
                     attach_to=self._parent,
                     attachment_type=carla.AttachmentType.Rigid)
             #weak_self = weakref.ref(self)
+            #self.tcp_client = TCP.Client(ip,port)
             self.sensor.listen(lambda image: Mirror._parse_image(self, image))
+            self.frame_id = 0
             #self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1, tcp_nodelay=True)
         if(self.debug_OnScreenRender):
             self.surface = pygame.Surface(self.dim)
@@ -1141,11 +1155,16 @@ class Mirror(object):
             display.blit(self.surface,self.position)
 
     def _parse_image(self, image):
-        carla_image_data_array = numpy.ndarray(
+        array = numpy.ndarray(
                 shape=(image.height, image.width, 4),
                 dtype=numpy.uint8, buffer=image.raw_data)
-        array = carla_image_data_array[:, :, :3] # Gets rid of the alpha channel
-        array = array[:, :, ::-1] #Reverse the color order BGR to RGB
+        #array = array[:, :, :3] # Gets rid of the alpha channel
+        #array = array[:, :, ::-1] #Reverse the color order BGR to RGB
+        #self.frame_id=self.frame_id+1
+        #UDP.Sender.sendBytes(self.frame_id,array.tobytes(),self.ip,self.port)
+        if(self.tcp_client is None):
+            self.tcp_client = TCP.Client(self.ip,self.port)
+        self.tcp_client.Send(array.tobytes())
         #array = np.swapaxes(array, 0, 1)
         #imageio.imwrite(self.topic+str(self.file_index)+".ppm",array,format='PPMRAW-FI')
         #self.file_index=self.file_index+1
@@ -1155,6 +1174,9 @@ class Mirror(object):
         if self.sensor is not None :
             self.sensor.destroy()
             #self.view_publisher.unregister()
+            if(self.tcp_client is not None):
+                self.tcp_client.Stop()
+                self.tcp_client = None
 
 
 
@@ -1163,7 +1185,6 @@ class Mirror(object):
 # ==============================================================================
 
 def game_loop(args):
-    
     #rospy.init_node('carla_manual_control', anonymous=True)
 
     pygame.init()
@@ -1179,9 +1200,11 @@ def game_loop(args):
             (args.width, args.height),
             pygame.HWSURFACE | pygame.DOUBLEBUF | 
             ( pygame.FULLSCREEN if args.fullscreen else 0))
-
+        
         hud = HUD(args.width, args.height,(args.mWidth,args.mHeight))
+
         world = World(client.get_world(), hud, args)
+        
         if args.wheel :
             controller = DualControl(world, args.autopilot)
         else :
@@ -1284,7 +1307,6 @@ def main():
     print(__doc__)
 
     try:
-
         game_loop(args)
 
     except KeyboardInterrupt:

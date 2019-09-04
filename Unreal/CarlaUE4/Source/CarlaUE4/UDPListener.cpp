@@ -154,18 +154,6 @@ void UUDPListener::Tick()
 		mutex = false;
 	}
 }
-
-
-
-UUDPListener::UUDPListener(EMessageType type, unsigned short port, unsigned short bufferSize)
-{
-	Init(type, port, bufferSize);
-}
-
-UUDPListener::UUDPListener()
-{
-}
-
 UUDPListener::~UUDPListener()
 {
 	if (m_thread != nullptr)
@@ -175,7 +163,7 @@ UUDPListener::~UUDPListener()
 	//Stop();
 }
 
-void UUDPListener::SetImageSize(int32 width, int32 height,EPixelFormat pixelFormat, int32 colorSize)
+int32 UUDPListener::SetImageSize(int32 width, int32 height,EPixelFormat pixelFormat, int32 colorSize)
 {
 	if (width > 0 && height > 0 && colorSize > 0)
 	{
@@ -185,10 +173,14 @@ void UUDPListener::SetImageSize(int32 width, int32 height,EPixelFormat pixelForm
 
 		m_dynamicTexture = UTexture2D::CreateTransient(m_width, m_height, pixelFormat);
 
-		//#define UpdateResource UpdateResource
-		//m_dynamicTexture->UpdateResource();
+		#define UpdateResource UpdateResource
+		m_dynamicTexture->UpdateResource();
 		OnImageInit(m_dynamicTexture);
+
+		return m_width * m_height * m_colorSize;
 	}
+
+	return 0;
 }
 
 void UUDPListener::Callback(unsigned short bytesRead)
@@ -217,46 +209,52 @@ void UUDPListener::Callback(unsigned short bytesRead)
 			OnIntMessage(out);
 		}
 		break;
-	case EMessageType::Image:
+	/*case EMessageType::Image:
 		if (m_dynamicTexture != nullptr)
 		{
 			if (bytesRead >= m_width*m_height*m_colorSize && m_dynamicTexture->Resource)
 			{
-				struct FUpdateTextureRegionsData
-				{
-					FTexture2DResource* Texture2DResource;
-					FUpdateTextureRegion2D Region;
-					uint32 SrcPitch;
-					const uint8* SrcData;
-				};
+				//TWeakPtr<UUDPListener, ESPMode::ThreadSafe> SelfPtr(_SelfPtr);
 
-				FUpdateTextureRegionsData* RegionData = new FUpdateTextureRegionsData;
+				//AsyncTask(ENamedThreads::GameThread, [this, SelfPtr]()
+					//{
+						//if (!SelfPtr.IsValid()) return;
+						struct FUpdateTextureRegionsData
+						{
+							FTexture2DResource* Texture2DResource;
+							FUpdateTextureRegion2D Region;
+							uint32 SrcPitch;
+							const uint8* SrcData;
+						};
 
-				RegionData->Texture2DResource = (FTexture2DResource*)m_dynamicTexture->Resource;
-				RegionData->Region.Width = m_width;
-				RegionData->Region.Height = m_height;
-				RegionData->Region.SrcX = 0;
-				RegionData->Region.SrcY = 0;
-				RegionData->Region.DestX = 0;
-				RegionData->Region.DestY = 0;
-				RegionData->SrcPitch = m_width * m_colorSize;
-				RegionData->SrcData = m_buffer;
+						FUpdateTextureRegionsData* RegionData = new FUpdateTextureRegionsData;
 
-				/*ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
-					[RegionData](FRHICommandListImmediate& RHICmdList)
-					{
-						RHIUpdateTexture2D(
-							RegionData->Texture2DResource->GetTexture2DRHI(),
-							0,
-							RegionData->Region,
-							RegionData->SrcPitch,
-							RegionData->SrcData
-						);
-						delete RegionData;
-					});*/
+						RegionData->Texture2DResource = (FTexture2DResource*)m_dynamicTexture->Resource;
+						RegionData->Region.Width = m_width;
+						RegionData->Region.Height = m_height;
+						RegionData->Region.SrcX = 0;
+						RegionData->Region.SrcY = 0;
+						RegionData->Region.DestX = 0;
+						RegionData->Region.DestY = 0;
+						RegionData->SrcPitch = m_width * m_colorSize;
+						RegionData->SrcData = m_buffer;
+
+						ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
+							[RegionData](FRHICommandListImmediate& RHICmdList)
+							{
+								RHIUpdateTexture2D(
+									RegionData->Texture2DResource->GetTexture2DRHI(),
+									0,
+									RegionData->Region,
+									RegionData->SrcPitch,
+									RegionData->SrcData
+								);
+								delete RegionData;
+							});
+					//});
 			}
 		}
-		break;
+		break;*/
 	}
 }
 
