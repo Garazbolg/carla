@@ -151,6 +151,7 @@ import NoiseGenerator
 import UDP
 UDP.Sender.init()
 import TCP
+import time
 
 running = True
 
@@ -184,8 +185,6 @@ class World(object):
         self.hud = hud
         self.player = None
         self.collision_sensor = None
-        self.lane_invasion_sensor = None
-        self.gnss_sensor = None
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
@@ -202,6 +201,14 @@ class World(object):
         self.noise = NoiseGenerator.SoundManager()
         self.warningReceiver = UDP.Receiver(5584,32,self.receive_noise_message)
         #self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
+
+        self.retro_left_position = (3.5,-1.5,1.0)
+        self.retro_right_position = (2.6,1.0,1.0)
+        self.retro_left_rotation = (0.0,196.5,0.0)
+        self.retro_right_rotation = (0.0,169,0.0)
+        self.curentRetroIndex = 0
+
+        self.mirrors = []
 
         self.restart()
         self.world.on_tick(hud.on_world_tick)
@@ -239,18 +246,41 @@ class World(object):
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud,self)
-        self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
-        self.gnss_sensor = GnssSensor(self.player)
-        self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
+        self.camera_manager = FlatCameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
         #Setup the mirrors.
+        time.sleep(0.5)
+        self.init_mirrors()
+
+    def init_mirrors(self):
+        for mirror in self.mirrors:
+            mirror.destroy()
         self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/" ,(0,-1,1),(0,225,0),not self.mixed_reality_mode,"127.0.0.1",5591))
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode,"127.0.0.1",5590))
-        print("end restart")
+        self.mirrors.append(
+            Mirror(
+                self.player,
+                (self.hud.mDim[0],self.hud.mDim[1]),
+                (0                               ,self.hud.dim[1]-self.hud.mDim[1]),
+                "capture/left/" ,
+                self.retro_left_position,
+                self.retro_left_rotation,
+                not self.mixed_reality_mode,
+                100,
+                "127.0.0.1",5581))
+        self.mirrors.append(
+            Mirror(
+                self.player,
+                (self.hud.mDim[0],self.hud.mDim[1]),
+                (self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),
+                "capture/right/",
+                self.retro_right_position,
+                self.retro_right_rotation,
+                not self.mixed_reality_mode,
+                80,
+                "127.0.0.1",5580))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -264,18 +294,33 @@ class World(object):
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
         #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
-        #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),"192.168.1.255",5582)
         UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5582)
-        #print(str(UDP.StringSender.sock))
-        #UDP.StringSender.sock = UDP.StringSender.sock +1
-        #self.mixed_publisher.publish(String("1" if self.mixed_reality_mode else "0"))
+        self.init_mirrors()
+        
+    def updateRetro(self,positive):
+        print("Curent index = "+str(self.curentRetroIndex))
+        pas = 0.1 if positive else -0.1
+        rot = 5 if positive else -5
+        if(self.curentRetroIndex == 0):
+            self.retro_left_position = (self.retro_left_position[0] + pas,self.retro_left_position[1],self.retro_left_position[2])
+        elif(self.curentRetroIndex == 1):
+            self.retro_left_position = (self.retro_left_position[0],self.retro_left_position[1] + pas,self.retro_left_position[2])
+        elif(self.curentRetroIndex == 2):
+            self.retro_left_rotation = (self.retro_left_rotation[0],self.retro_left_rotation[1] + pas,self.retro_left_rotation[2])
+        elif(self.curentRetroIndex == 3):
+            self.retro_right_position = (self.retro_right_position[0]+pas,self.retro_right_position[1],self.retro_right_position[2])
+        elif(self.curentRetroIndex == 4):
+            self.retro_right_position = (self.retro_right_position[0],self.retro_right_position[1]+pas,self.retro_right_position[2])
+        elif(self.curentRetroIndex == 5 ):
+            self.retro_right_rotation = (self.retro_right_rotation[0],self.retro_right_rotation[1]+pas,self.retro_right_rotation[2])
 
-        for mirror in self.mirrors:
-            mirror.destroy()
-        self.mirrors = []
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(0                               ,self.hud.dim[1]-self.hud.mDim[1]),"capture/left/" ,(0,-1,1),(0,225,0),not self.mixed_reality_mode,"127.0.0.1",5591))
-        self.mirrors.append(Mirror(self.player,(self.hud.mDim[0],self.hud.mDim[1]),(self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),"capture/right/",(0, 1,1),(0,135,0),not self.mixed_reality_mode,"127.0.0.1",5590))
-        #self.restart()
+        if(self.mirrors is not None):
+            if(self.curentRetroIndex<3):
+                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation))
+                self.mirrors[0].setTransform(self.retro_left_position,self.retro_left_rotation)
+            else:
+                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation))
+                self.mirrors[1].setTransform(self.retro_right_position,self.retro_right_rotation)
 
     def receive_noise_message(self, msg):
         self.noise.warningActive = True if msg.decode('utf-8') != "0" else False
@@ -292,17 +337,11 @@ class World(object):
         self.hud.render(display)
 
     def destroy_sensors(self):
-        for sensor in self.camera_manager.sensor_actors:
-            sensor.destroy()
-            sensor = None
-        self.camera_manager.sensor_actors = None
-        self.camera_manager.index = None
+        self.camera_manager.destroy()
 
     def destroy(self):
         actors = [
             self.collision_sensor.sensor,
-            self.lane_invasion_sensor.sensor,
-            self.gnss_sensor.sensor,
             self.player]
         self.destroy_sensors()
         for actor in actors:
@@ -505,6 +544,7 @@ class DualControl(object):
         self._weather_idx = int(self._parser.get(self._joystick.get_name(), 'weather'))
         self._gear_up_idx   = int(self._parser.get(self._joystick.get_name(), 'gear_up'))
         self._gear_down_idx = int(self._parser.get(self._joystick.get_name(), 'gear_down'))
+        self._auto_pilot_idx = int(self._parser.get(self._joystick.get_name(), 'auto_pilot'))
 
     def parse_events(self, client, world, clock):
         for event in pygame.event.get():
@@ -515,8 +555,8 @@ class DualControl(object):
                     world.mixed_reality_toggle()
                 elif event.button == self._hud_idx:
                     world.hud.toggle_info()
-                elif event.button == self._left_right_idx: #Switch Left/Right
-                    world.camera_manager.toggle_camera()
+                #elif event.button == self._left_right_idx: #Switch Left/Right
+                    #world.camera_manager.toggle_camera()
                 elif event.button == self._weather_idx:
                     world.next_weather()
                 elif event.button == self._reverse_idx:
@@ -527,6 +567,18 @@ class DualControl(object):
                     self._control.gear = max(-1, self._control.gear - 1)
                 elif self._control.manual_gear_shift and event.button == self._gear_up_idx:
                     self._control.gear = self._control.gear + 1
+                elif event.button == self._auto_pilot_idx:
+                    self._autopilot_enabled = not self._autopilot_enabled
+                    world.player.set_autopilot(self._autopilot_enabled)
+                    world.hud.notification('Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
+                    self._control.manual_gear_shift = not self._control.manual_gear_shift
+                    self._control.gear = world.player.get_control().gear
+                elif event.button == 2:
+                    world.updateRetro(False)
+                elif event.button == 3:
+                    world.updateRetro(True)
+                elif event.button == 4:
+                    world.curentRetroIndex = (world.curentRetroIndex +1)%6
 
             elif event.type == pygame.KEYUP:
                 if self._is_quit_shortcut(event.key):
@@ -602,6 +654,8 @@ class DualControl(object):
                         self._autopilot_enabled = not self._autopilot_enabled
                         world.player.set_autopilot(self._autopilot_enabled)
                         world.hud.notification('Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
+                        self._control.manual_gear_shift = not self._control.manual_gear_shift
+                        self._control.gear = world.player.get_control().gear
 
         if not self._autopilot_enabled:
             if isinstance(self._control, carla.VehicleControl):
@@ -637,7 +691,8 @@ class DualControl(object):
         # For the steering, it seems fine as it is
         K1 = 0.55
         #K1 = 0.25
-        steerCmd = K1 *(1 * jsInputs[self._steer_idx])
+        MinSteer = 100
+        steerCmd = K1 *(NoiseGenerator.Clamp01(abs(jsInputs[self._steer_idx])*MinSteer)* jsInputs[self._steer_idx])
         #steerCmd = K1 * math.pow(1 * jsInputs[self._steer_idx],2)*(-1 if jsInputs[self._steer_idx]<0 else 1)
 
         K2 = 1.6  # 1.6
@@ -741,7 +796,6 @@ class HUD(object):
             'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
             u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
             'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
-            'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
             'Height:  % 18.0f m' % t.location.z,
             '']
         if isinstance(c, carla.VehicleControl):
@@ -990,16 +1044,17 @@ class CameraManager(object):
         #Attachment = carla.AttachmentType
         self.fov = 45
         self.fov_offset = 0.9
-        self.side_offset=0.36
+        self.side_offset=0.405
+        self.pitch_offset = -5
         self._camera_transforms =([
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15),carla.Rotation(yaw=-self.fov - self.fov_offset,roll=0)),
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15)),
-                    carla.Transform(carla.Location(x=-0.4, y=-self.side_offset, z=1.15),carla.Rotation(yaw=+self.fov + self.fov_offset,roll =0))
+                    carla.Transform(carla.Location(x=-0.45, y=-self.side_offset, z=1.22),carla.Rotation(pitch=self.pitch_offset,yaw=-self.fov - self.fov_offset ,roll=0)),
+                    carla.Transform(carla.Location(x=-0.45, y=-self.side_offset, z=1.22),carla.Rotation(pitch=self.pitch_offset,yaw=0                           ,roll=0)),
+                    carla.Transform(carla.Location(x=-0.45, y=-self.side_offset, z=1.22),carla.Rotation(pitch=self.pitch_offset,yaw=+self.fov + self.fov_offset ,roll=0))
                 ],
                 [
-                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.2),carla.Rotation(yaw=-self.fov - self.fov_offset)),
-                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.2)),
-                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.2),carla.Rotation(yaw=+self.fov + self.fov_offset))
+                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.15),carla.Rotation(yaw=-self.fov - self.fov_offset)),
+                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.15)),
+                    carla.Transform(carla.Location(x=-0.4, y=self.side_offset, z=1.15),carla.Rotation(yaw=+self.fov + self.fov_offset))
                 ]
                 ) # <= Adjust depending on the model of car we want to display
         self.surfaces_pos = [
@@ -1099,9 +1154,106 @@ class CameraManager(object):
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
 
+    def destroy(self):
+        for sensor in self.sensor_actors:
+            sensor.destroy()
+            sensor = None
+        self.sensor_actors = None
+        self.index = None
+
+class FlatCameraManager(object):
+    def __init__(self, parent_actor, hud, gamma_correction):
+        self.sensor_actor = None
+        self.surface = None
+        self._parent = parent_actor
+        self.hud = hud
+        self.recording = False
+        bound_y = 0.5 + self._parent.bounding_box.extent.y
+        #Attachment = carla.AttachmentType
+        self.fov = math.atan(math.tan((55/180)*math.pi/2.0)*3)*2/math.pi*180
+        self.fov_offset = 0.9
+        self.side_offset=0.405
+        self.pitch_offset = -5
+        self._camera_transforms =(
+                    carla.Transform(carla.Location(x=-0.45, y=-self.side_offset, z=1.22),carla.Rotation(pitch=self.pitch_offset,yaw=0                           ,roll=0)),
+                    carla.Transform(carla.Location(x=-0.45, y=self.side_offset, z=1.22))
+                ) # <= Adjust depending on the model of car we want to display
+        self.transform_index = 1
+        self.sensors = [
+            ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
+            ['sensor.camera.rgb', cc.Raw, 'Camera RGB']]
+        world = self._parent.get_world()
+        bp_library = world.get_blueprint_library()
+        for item in self.sensors:
+            bp = bp_library.find(item[0])
+            bp.set_attribute('image_size_x', str(hud.dim[0]))
+            bp.set_attribute('image_size_y', str(hud.dim[1]))
+            bp.set_attribute('fov',str(self.fov))
+            if bp.has_attribute('gamma'):
+                bp.set_attribute('gamma', str(gamma_correction))
+
+            item.append(bp)
+        self.index = None
+
+    def toggle_camera(self):
+        self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
+        self.set_sensor(self.index, notify=False, force_respawn=True)
+
+    def set_sensor(self, index, notify=True, force_respawn=False):
+        index = index % len(self.sensors)
+        needs_respawn = True if self.index is None else \
+            (force_respawn or (self.sensors[index][0] != self.sensors[self.index][0]))
+        if needs_respawn:
+            if self.sensor_actor is not None:
+                self.sensor_actor.destroy()
+            self.surface = None
+            self.sensor_actor = (self._parent.get_world().spawn_actor(
+                self.sensors[index][-1],
+                self._camera_transforms[self.transform_index],
+                attach_to=self._parent,
+                attachment_type=carla.AttachmentType.Rigid))
+            # We need to pass the lambda a weak reference to self to avoid
+            # circular reference.
+            weak_self = weakref.ref(self)
+            
+            self.sensor_actor.listen(lambda image: FlatCameraManager._parse_image(weak_self, image))
+        if notify:
+            self.hud.notification(self.sensors[index][2])
+        self.index = index
+
+    def next_sensor(self):
+        self.set_sensor(self.index + 1)
+
+    def toggle_recording(self):
+        self.recording = not self.recording
+        self.hud.notification('Recording %s' % ('On' if self.recording else 'Off'))
+
+    def render(self, display):
+        if self.surface is not None :
+            display.blit(self.surface, (0,0))
+
+    @staticmethod
+    def _parse_image(weak_self, image):
+        self = weak_self()
+        if not self:
+            return
+        
+        #image.convert(self.sensors[self.index][1])
+        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (image.height, image.width, 4))
+        array = array[:, :, :3]
+        array = array[:, :, ::-1]
+        self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+        if self.recording:
+            image.save_to_disk('_out/%08d' % image.frame)
+
+    def destroy(self):
+        self.sensor_actor.destroy()
+        self.sensor_actor = None
+        self.index = None
 
 class Mirror(object):
-    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, ip=None, port=None):
+    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, fov,ip=None, port=None):
         print('INIT MIRROR')
         self._parent = parent_actor
         self.dim = dim
@@ -1121,8 +1273,9 @@ class Mirror(object):
             bp = bp_library.find('sensor.camera.rgb')
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
-            bp.set_attribute('fov','90')
+            bp.set_attribute('fov',str(fov))
             bp.set_attribute('sensor_tick',str(1.0/30))
+            bp.set_attribute('enable_postprocess_effects',str(False))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1130,25 +1283,27 @@ class Mirror(object):
                         carla.Rotation(pitch=world_rotation[0],yaw=world_rotation[1],roll=world_rotation[2])),
                     attach_to=self._parent,
                     attachment_type=carla.AttachmentType.Rigid)
-            #weak_self = weakref.ref(self)
-            #self.tcp_client = TCP.Client(ip,port)
             self.sensor.listen(lambda image: Mirror._parse_image(self, image))
             self.frame_id = 0
-            #self.view_publisher = rospy.Publisher(topic[0], Image, queue_size=1, tcp_nodelay=True)
         if(self.debug_OnScreenRender):
             self.surface = pygame.Surface(self.dim)
             self.surface.fill((0,0,0,0))
-            #self.sub = rospy.Subscriber(topic[1],Image,self.callback, queue_size=1, tcp_nodelay=True)
 
     def callback(self,img_msg):
-        #print('Image received')
-        #array = np.frombuffer(cv_bridge.imgmsg_to_cv2(img_msg,'bgra8'), dtype=np.dtype("uint8"))
         array = np.reshape(img_msg, (self.dim[1], self.dim[0], 4)) # From 1D to 3D array (width,height,BGRA)
         array = array[:, :, :3] # Gets rid of the alpha channel
         array = array[:, :, ::-1] #Reverse the color order BGR to RGB
         array = np.swapaxes(array, 0, 1)
         array = np.flip(array,0) # Flip X
         self.surface = pygame.surfarray.make_surface(array)
+
+    def setTransform(self,position,rotation):
+        print("enter set transform")
+        if(self.sensor is not None):
+            self.sensor.set_transform(carla.Transform(
+                carla.Location(x=position[0],y=position[1], z=position[2]),
+                carla.Rotation(pitch=rotation[0],yaw=rotation[1],roll=rotation[2])))
+        print("out set transform")
 
     def render(self,display):
         if(self.debug_OnScreenRender):
@@ -1158,22 +1313,14 @@ class Mirror(object):
         array = numpy.ndarray(
                 shape=(image.height, image.width, 4),
                 dtype=numpy.uint8, buffer=image.raw_data)
-        #array = array[:, :, :3] # Gets rid of the alpha channel
-        #array = array[:, :, ::-1] #Reverse the color order BGR to RGB
-        #self.frame_id=self.frame_id+1
-        #UDP.Sender.sendBytes(self.frame_id,array.tobytes(),self.ip,self.port)
         if(self.tcp_client is None):
             self.tcp_client = TCP.Client(self.ip,self.port)
         self.tcp_client.Send(array.tobytes())
-        #array = np.swapaxes(array, 0, 1)
-        #imageio.imwrite(self.topic+str(self.file_index)+".ppm",array,format='PPMRAW-FI')
-        #self.file_index=self.file_index+1
-        #print('Sent')
 
     def destroy(self):
         if self.sensor is not None :
             self.sensor.destroy()
-            #self.view_publisher.unregister()
+            self.sensor = None
             if(self.tcp_client is not None):
                 self.tcp_client.Stop()
                 self.tcp_client = None
@@ -1185,7 +1332,6 @@ class Mirror(object):
 # ==============================================================================
 
 def game_loop(args):
-    #rospy.init_node('carla_manual_control', anonymous=True)
 
     pygame.init()
     pygame.font.init()

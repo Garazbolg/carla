@@ -17,13 +17,6 @@ public:
 
 	~FUDPListenerWorker()
 	{
-		if (Thread != nullptr)
-		{
-			Thread->WaitForCompletion();
-			delete Thread;
-			Thread = nullptr;
-		}
-		delete m_sbuffer;
 	}
 
 	void Start()
@@ -42,14 +35,16 @@ public:
 		int n = 0;
 		while (StopTaskCounter.GetValue() == 0 && m_buffer != nullptr && m_parent != nullptr)
 		{
+
 			n = recvfrom(m_sock, (char*)m_sbuffer, m_size, 0, nullptr, nullptr);
-			if (n < 0)
+
+			if (n <= 0)
 			{
 				UE_LOG(LogTemp, Error, TEXT("recvfrom"));
 			}
 			else
 			{
-				if (m_parent != nullptr && m_buffer != nullptr) {
+				if (m_parent != nullptr && m_buffer != nullptr && m_sbuffer != nullptr) {
 					if (!m_parent->mutex)
 					{
 						m_parent->mutex = true;
@@ -60,15 +55,21 @@ public:
 					}
 				}
 			}
-
+			FPlatformProcess::Sleep(0.03);
 		}
+		if (m_sock >= 0)
+			closesocket(m_sock);
+		Thread = nullptr;
+		delete m_sbuffer;
+
 
 		return 0;
 	}
 
 	void Stop()
 	{
-		StopTaskCounter.Increment();
+		//StopTaskCounter.Increment();
+		m_buffer = nullptr;
 	}
 
 	UUDPListener* m_parent;
@@ -122,11 +123,9 @@ void UUDPListener::Stop()
 	if (m_thread != nullptr)
 	{
 		m_thread->Stop();
-		delete m_thread;
+		//delete m_thread;
 	}
-	if (m_sock >= 0)
-		closesocket(m_sock);
-	
+
 	if (m_buffer != nullptr)
 	{
 		delete m_buffer;

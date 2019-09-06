@@ -12,13 +12,6 @@ public:
 
 	~FTCPListenerWorker()
 	{
-		if (Thread != nullptr)
-		{
-			Thread->WaitForCompletion();
-			delete Thread;
-			Thread = nullptr;
-		}
-		delete m_sbuffer;
 	}
 
 	void Start()
@@ -31,9 +24,6 @@ public:
 	// Hérité via FRunnable
 	virtual uint32 Run() override
 	{
-		//Initial wait before starting
-		FPlatformProcess::Sleep(0.03);
-
 		listen(m_sock, 100);
 		int n = 0;
 		int32 received_bytes = 0;
@@ -52,8 +42,10 @@ public:
 			UE_LOG(LogTemp, Warning, TEXT("Connection accepted : Buffer size = %d"),m_size);
 
 			//Receive a message from client
-			while ((read_size = recv(client_sock, (char*)m_sbuffer+ received_bytes, m_size/4, 0)) > 0)
+			while ((StopTaskCounter.GetValue() == 0) && (read_size = recv(client_sock, (char*)m_sbuffer+ received_bytes, m_size/4, 0)) > 0)
 			{
+				if (m_sbuffer == nullptr || m_buffer == nullptr) break;
+
 				received_bytes += read_size;
 				//UE_LOG(LogTemp, Log, TEXT("Data received : %d/%d (%d)"),received_bytes,m_size,read_size);
 				if (received_bytes >= m_size)
@@ -85,12 +77,29 @@ public:
 			closesocket(client_sock);
 		}
 
+		if (m_sbuffer != nullptr)
+		{
+			delete m_sbuffer;
+			m_sbuffer = nullptr;
+		}
+
 		return 0;
 	}
 
 	void Stop()
 	{
 		StopTaskCounter.Increment();
+		/*if (Thread != nullptr)
+		{
+			Thread->Kill(false);
+			//delete Thread;
+			Thread = nullptr;
+		}
+		if (m_sbuffer != nullptr)
+		{
+			delete m_sbuffer;
+			m_sbuffer = nullptr;
+		}*/
 	}
 
 	UTCPImageListener* m_parent;
@@ -177,15 +186,12 @@ void UTCPImageListener::Stop()
 {
 	if (m_thread != nullptr)
 	{
-		m_thread->Stop();
-		delete m_thread;
+		//m_thread->Stop();
+		//delete m_thread;
 	}
 
 	if (m_sock >= 0)
 		closesocket(m_sock);
-	
-	if (m_dynamicTexture != nullptr)
-		delete m_dynamicTexture;
 
 	if (m_buffer != nullptr)
 	{

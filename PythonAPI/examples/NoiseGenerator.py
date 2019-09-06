@@ -80,13 +80,13 @@ class SoundManager(object):
         #Speed -----
         self.velocity = 0.0
         self.MAX_VELOCITY = 300
-        self.VELOCITY_MAX_AMPLITUDE = 0.7
+        self.VELOCITY_MAX_AMPLITUDE = 0.6
         self.NoiseSpeed = SoundSynth(self.speedSynth,self.speedAmp,1024,self.pya,128)
 
         #Warning ---
         self.warningActive = False
         self.warningFrequency = 110
-        self.warningAmpliude = 0.5
+        self.warningAmpliude = 0.4
         self.SawWarning = SoundSynth(self.warningSynth,self.warningAmp,4069,self.pya,512)
 
 
