@@ -202,10 +202,14 @@ class World(object):
         self.warningReceiver = UDP.Receiver(5584,32,self.receive_noise_message)
         #self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
 
-        self.retro_left_position = (3.5,-1.5,1.0)
-        self.retro_right_position = (2.6,1.0,1.0)
-        self.retro_left_rotation = (0.0,196.5,0.0)
-        self.retro_right_rotation = (0.0,169,0.0)
+        self.retro_left_position = (5.9,-0.8,1.0)#(3.5,-1.5,1.0)
+        self.retro_left_rotation = (0.0,196.4,0.0)#(0.0,196.5,0.0)
+        self.retro_left_fov = 80#100
+
+        self.retro_right_position = (3.4,0.9,1.0)
+        self.retro_right_rotation = (0.0,164,0.0)
+        self.retro_right_fov = 90
+
         self.curentRetroIndex = 0
 
         self.mirrors = []
@@ -220,9 +224,11 @@ class World(object):
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         # Get a specific blueprint selected by ID.
-        blueprint = next( x for x in self.world.get_blueprint_library().filter(self._actor_filter) if x.id.endswith('esoft.realistic'))
         #for bp in self.world.get_blueprint_library().filter(self._actor_filter):
-            #print(str(bp.id))
+        #    print(str(bp.id))
+        blueprint = next( x for x in self.world.get_blueprint_library().filter(self._actor_filter) if x.id.endswith('esoft.realistic'))
+        #blueprint = next( x for x in self.world.get_blueprint_library().filter(self._actor_filter) if x.id.endswith('audi.a2'))
+        
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)
@@ -246,7 +252,7 @@ class World(object):
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud,self)
-        self.camera_manager = FlatCameraManager(self.player, self.hud, self._gamma)
+        self.camera_manager = NoCameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
@@ -268,8 +274,8 @@ class World(object):
                 self.retro_left_position,
                 self.retro_left_rotation,
                 not self.mixed_reality_mode,
-                100,
-                "127.0.0.1",5581))
+                self.retro_left_fov,
+                "127.0.0.1",5571))
         self.mirrors.append(
             Mirror(
                 self.player,
@@ -279,8 +285,8 @@ class World(object):
                 self.retro_right_position,
                 self.retro_right_rotation,
                 not self.mixed_reality_mode,
-                80,
-                "127.0.0.1",5580))
+                self.retro_right_fov,
+                "127.0.0.1",5570))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -294,13 +300,12 @@ class World(object):
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
         #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
-        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5582)
+        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5572)
         self.init_mirrors()
         
     def updateRetro(self,positive):
-        print("Curent index = "+str(self.curentRetroIndex))
         pas = 0.1 if positive else -0.1
-        rot = 5 if positive else -5
+        rot = 10 if positive else -10
         if(self.curentRetroIndex == 0):
             self.retro_left_position = (self.retro_left_position[0] + pas,self.retro_left_position[1],self.retro_left_position[2])
         elif(self.curentRetroIndex == 1):
@@ -308,18 +313,26 @@ class World(object):
         elif(self.curentRetroIndex == 2):
             self.retro_left_rotation = (self.retro_left_rotation[0],self.retro_left_rotation[1] + pas,self.retro_left_rotation[2])
         elif(self.curentRetroIndex == 3):
-            self.retro_right_position = (self.retro_right_position[0]+pas,self.retro_right_position[1],self.retro_right_position[2])
+            self.retro_left_fov = self.retro_left_fov + rot
         elif(self.curentRetroIndex == 4):
+            self.retro_right_position = (self.retro_right_position[0]+pas,self.retro_right_position[1],self.retro_right_position[2])
+        elif(self.curentRetroIndex == 5):
             self.retro_right_position = (self.retro_right_position[0],self.retro_right_position[1]+pas,self.retro_right_position[2])
-        elif(self.curentRetroIndex == 5 ):
+        elif(self.curentRetroIndex == 6 ):
             self.retro_right_rotation = (self.retro_right_rotation[0],self.retro_right_rotation[1]+pas,self.retro_right_rotation[2])
+        elif(self.curentRetroIndex == 7 ):
+            self.retro_right_fov = self.retro_right_fov + rot
 
         if(self.mirrors is not None):
-            if(self.curentRetroIndex<3):
-                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation))
+            if(self.curentRetroIndex == 3 or self.curentRetroIndex == 7):
+                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
+                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
+                self.init_mirrors()
+            elif(self.curentRetroIndex<3):
+                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
                 self.mirrors[0].setTransform(self.retro_left_position,self.retro_left_rotation)
             else:
-                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation))
+                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
                 self.mirrors[1].setTransform(self.retro_right_position,self.retro_right_rotation)
 
     def receive_noise_message(self, msg):
@@ -578,7 +591,7 @@ class DualControl(object):
                 elif event.button == 3:
                     world.updateRetro(True)
                 elif event.button == 4:
-                    world.curentRetroIndex = (world.curentRetroIndex +1)%6
+                    world.curentRetroIndex = (world.curentRetroIndex +1)%8
 
             elif event.type == pygame.KEYUP:
                 if self._is_quit_shortcut(event.key):
@@ -1170,6 +1183,7 @@ class FlatCameraManager(object):
         self.recording = False
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         #Attachment = carla.AttachmentType
+        #self.fov = 45
         self.fov = math.atan(math.tan((55/180)*math.pi/2.0)*3)*2/math.pi*180
         self.fov_offset = 0.9
         self.side_offset=0.405
@@ -1252,6 +1266,32 @@ class FlatCameraManager(object):
         self.sensor_actor = None
         self.index = None
 
+class NoCameraManager(object):
+    def __init__(self, parent_actor, hud, gamma_correction):
+        self.surface = pygame.Surface((200,200))
+        self.surface.fill((255,0,0))
+        self.index = 1
+
+    def toggle_camera(self):
+        self.set_sensor(self.index, notify=False, force_respawn=True)
+
+    def set_sensor(self, index, notify=True, force_respawn=False):
+        self.index=0
+        #self.surface = pygame.make_surface()
+
+    def next_sensor(self):
+        self.set_sensor(self.index + 1)
+
+    def toggle_recording(self):
+        self.recording = not self.recording
+
+    def render(self, display):
+        if self.surface is not None :
+            display.blit(self.surface, (0,0))
+
+    def destroy(self):
+        self.index = None
+
 class Mirror(object):
     def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, fov,ip=None, port=None):
         print('INIT MIRROR')
@@ -1274,8 +1314,8 @@ class Mirror(object):
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
             bp.set_attribute('fov',str(fov))
-            bp.set_attribute('sensor_tick',str(1.0/30))
-            bp.set_attribute('enable_postprocess_effects',str(False))
+            #bp.set_attribute('sensor_tick',str(1.0/30))
+            bp.set_attribute('enable_postprocess_effects',str(True))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1287,11 +1327,11 @@ class Mirror(object):
             self.frame_id = 0
         if(self.debug_OnScreenRender):
             self.surface = pygame.Surface(self.dim)
-            self.surface.fill((0,0,0,0))
+            self.surface.fill((0,255,0,0))
 
     def callback(self,img_msg):
-        array = np.reshape(img_msg, (self.dim[1], self.dim[0], 4)) # From 1D to 3D array (width,height,BGRA)
-        array = array[:, :, :3] # Gets rid of the alpha channel
+        #array = np.reshape(numpy.repeat(img_msg,4), (self.dim[1], self.dim[0],4)) # From 1D to 3D array (width,height,BGRA)
+        array = img_msg[:, :, :3] # Gets rid of the alpha channel
         array = array[:, :, ::-1] #Reverse the color order BGR to RGB
         array = np.swapaxes(array, 0, 1)
         array = np.flip(array,0) # Flip X
@@ -1313,6 +1353,8 @@ class Mirror(object):
         array = numpy.ndarray(
                 shape=(image.height, image.width, 4),
                 dtype=numpy.uint8, buffer=image.raw_data)
+        if(self.debug_OnScreenRender):
+            self.callback(array)
         if(self.tcp_client is None):
             self.tcp_client = TCP.Client(self.ip,self.port)
         self.tcp_client.Send(array.tobytes())
@@ -1358,7 +1400,7 @@ def game_loop(args):
 
         clock = pygame.time.Clock()
         while True:
-            clock.tick_busy_loop(60)
+            clock.tick_busy_loop(90)
             if controller.parse_events(client, world, clock):
                 return
             world.tick(clock)
@@ -1409,8 +1451,8 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='1920x1080',
-        help='window resolution (default: 1920x1080)')
+        default='200x200',
+        help='window resolution (default: 200x200)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
@@ -1433,8 +1475,8 @@ def main():
     )
     argparser.add_argument(
         '--mirror_size',
-        default='320x240',
-        help='mirror resolution (default: 320x240)')
+        default='1280x720',
+        help='mirror resolution (default: 1280x720)')
     argparser.add_argument(
         '--fullscreen',
         action='store_true',
