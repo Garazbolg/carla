@@ -42,7 +42,7 @@ public:
 			UE_LOG(LogTemp, Warning, TEXT("Connection accepted : Buffer size = %d"),m_size);
 
 			//Receive a message from client
-			while ((StopTaskCounter.GetValue() == 0) && (read_size = recv(client_sock, (char*)m_sbuffer+ received_bytes, m_size/4, 0)) > 0)
+			while ((StopTaskCounter.GetValue() == 0) && (read_size = recv(client_sock, (char*)m_sbuffer+ received_bytes, m_size- received_bytes, 0)) > 0)
 			{
 				if (m_sbuffer == nullptr || m_buffer == nullptr) break;
 
@@ -121,10 +121,10 @@ UTCPImageListener::UTCPImageListener()
 
 UTCPImageListener::~UTCPImageListener()
 {
-	if (m_thread != nullptr)
+	/*if (m_thread != nullptr)
 	{
 		m_thread->m_parent = nullptr;
-	}
+	}*/
 }
 
 void UTCPImageListener::Init(int32 port,int32 bufferSize)
@@ -186,10 +186,10 @@ void UTCPImageListener::Stop()
 {
 	if (m_thread != nullptr)
 	{
-		//m_thread->Stop();
+		m_thread->Stop();
 		//delete m_thread;
 	}
-
+	
 	if (m_sock >= 0)
 		closesocket(m_sock);
 

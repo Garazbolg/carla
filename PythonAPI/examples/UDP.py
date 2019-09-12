@@ -24,7 +24,6 @@ class Receiver(object):
 
 
 class Sender(object):
-    MAX_PACKET_DATA_SIZE = 8000
 
     sock = None
 
@@ -36,24 +35,5 @@ class Sender(object):
     def sendString(message, ip, port) :
         if(Sender.sock is not None) : 
             Sender.sock.sendto(message.encode(),(ip,port))
-
-    @staticmethod
-    def sendBytes(frame_id ,message, ip, port) :
-        threading.Thread(target=Func,args=(frame_id ,message, ip, port)).start()
-        
-
-def Func(frame_id,message,ip,port):
-    if(Sender.sock is not None) :
-            array = np.frombuffer(message,dtype=np.uint8)
-            chunk_pos = 0
-            while(array.size != 0):
-                ar = array[:Sender.MAX_PACKET_DATA_SIZE]
-                data_size = ar.size
-                end = struct.pack('iLQ',data_size,frame_id,chunk_pos)+ar.tobytes()
-                if(Sender.sock.sendto(end,(ip,port))<=0):
-                    print("Packet lost")
-                chunk_pos = chunk_pos+ar.size
-                array = array[ar.size:]
-    
 
         

@@ -275,9 +275,9 @@ class World(object):
                 self.retro_left_rotation,
                 not self.mixed_reality_mode,
                 self.retro_left_fov,
-                "127.0.0.1",5571))
+                "192.168.56.101",5581))
         self.mirrors.append(
-            Mirror(
+           Mirror(
                 self.player,
                 (self.hud.mDim[0],self.hud.mDim[1]),
                 (self.hud.dim[0]-self.hud.mDim[0],self.hud.dim[1]-self.hud.mDim[1]),
@@ -286,7 +286,7 @@ class World(object):
                 self.retro_right_rotation,
                 not self.mixed_reality_mode,
                 self.retro_right_fov,
-                "127.0.0.1",5570))
+                "127.0.0.1",5580))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -300,7 +300,7 @@ class World(object):
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
         #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
-        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5572)
+        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5582)
         self.init_mirrors()
         
     def updateRetro(self,positive):

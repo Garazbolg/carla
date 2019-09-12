@@ -57,8 +57,7 @@ public:
 			}
 			FPlatformProcess::Sleep(0.03);
 		}
-		if (m_sock >= 0)
-			closesocket(m_sock);
+		
 		Thread = nullptr;
 		delete m_sbuffer;
 
@@ -68,8 +67,8 @@ public:
 
 	void Stop()
 	{
-		//StopTaskCounter.Increment();
-		m_buffer = nullptr;
+		StopTaskCounter.Increment();
+		//m_buffer = nullptr;
 	}
 
 	UUDPListener* m_parent;
@@ -124,6 +123,11 @@ void UUDPListener::Stop()
 	{
 		m_thread->Stop();
 		//delete m_thread;
+	}
+
+	if (m_sock >= 0) {
+		closesocket(m_sock);
+		m_sock = -1;
 	}
 
 	if (m_buffer != nullptr)
