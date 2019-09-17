@@ -145,12 +145,13 @@ import numpy
 #from carla_ros_bridge import *
 #from cv_bridge import CvBridge,CvBridgeError
 #cv_bridge = CvBridge()
-import imageio
+#import imageio
 
 import NoiseGenerator
 import UDP
 UDP.Sender.init()
 import TCP
+import YUV
 import time
 
 running = True
@@ -192,7 +193,7 @@ class World(object):
         self._actor_filter = args.filter
         self._gamma = args.gamma
 
-        self.V3H_IP = "192.168.0.20"
+        self.V3H_IP = "192.168.1.20"
 
         self.vehicle_index = 14
         self.mixed_reality_mode = True
@@ -202,7 +203,7 @@ class World(object):
         self.warningReceiver = UDP.Receiver(5584,32,self.receive_noise_message)
         #self.noiseSubscriber = rospy.Subscriber("/eSoft/IVI/Index",String,self.receive_noise_message)
 
-        self.retro_left_position = (5.9,-0.8,1.0)#(3.5,-1.5,1.0)
+        self.retro_left_position = (2.9,-1.1,1)#(5.9,-0.8,1.0)#(3.5,-1.5,1.0)
         self.retro_left_rotation = (0.0,196.4,0.0)#(0.0,196.5,0.0)
         self.retro_left_fov = 80#100
 
@@ -275,7 +276,8 @@ class World(object):
                 self.retro_left_rotation,
                 not self.mixed_reality_mode,
                 self.retro_left_fov,
-                "192.168.56.101",5581))
+                "192.168.1.20",5581,
+                True))
         self.mirrors.append(
            Mirror(
                 self.player,
@@ -284,9 +286,10 @@ class World(object):
                 "capture/right/",
                 self.retro_right_position,
                 self.retro_right_rotation,
-                not self.mixed_reality_mode,
+                True,
                 self.retro_right_fov,
-                "127.0.0.1",5580))
+                "127.0.0.1",5580,
+                False))
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -299,41 +302,42 @@ class World(object):
         if value is None :
             value = not self.mixed_reality_mode
         self.mixed_reality_mode = value
-        #UDP.StringSender.send(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
+        UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),self.V3H_IP,5582)
         UDP.Sender.sendString(("1" if self.mixed_reality_mode else "0"),"127.0.0.1",5582)
         self.init_mirrors()
         
     def updateRetro(self,positive):
-        pas = 0.1 if positive else -0.1
-        rot = 10 if positive else -10
-        if(self.curentRetroIndex == 0):
-            self.retro_left_position = (self.retro_left_position[0] + pas,self.retro_left_position[1],self.retro_left_position[2])
-        elif(self.curentRetroIndex == 1):
-            self.retro_left_position = (self.retro_left_position[0],self.retro_left_position[1] + pas,self.retro_left_position[2])
-        elif(self.curentRetroIndex == 2):
-            self.retro_left_rotation = (self.retro_left_rotation[0],self.retro_left_rotation[1] + pas,self.retro_left_rotation[2])
-        elif(self.curentRetroIndex == 3):
-            self.retro_left_fov = self.retro_left_fov + rot
-        elif(self.curentRetroIndex == 4):
-            self.retro_right_position = (self.retro_right_position[0]+pas,self.retro_right_position[1],self.retro_right_position[2])
-        elif(self.curentRetroIndex == 5):
-            self.retro_right_position = (self.retro_right_position[0],self.retro_right_position[1]+pas,self.retro_right_position[2])
-        elif(self.curentRetroIndex == 6 ):
-            self.retro_right_rotation = (self.retro_right_rotation[0],self.retro_right_rotation[1]+pas,self.retro_right_rotation[2])
-        elif(self.curentRetroIndex == 7 ):
-            self.retro_right_fov = self.retro_right_fov + rot
+        if(self.hud._show_info):
+            pas = 0.1 if positive else -0.1
+            rot = 10 if positive else -10
+            if(self.curentRetroIndex == 0):
+                self.retro_left_position = (self.retro_left_position[0] + pas,self.retro_left_position[1],self.retro_left_position[2])
+            elif(self.curentRetroIndex == 1):
+                self.retro_left_position = (self.retro_left_position[0],self.retro_left_position[1] + pas,self.retro_left_position[2])
+            elif(self.curentRetroIndex == 2):
+                self.retro_left_rotation = (self.retro_left_rotation[0],self.retro_left_rotation[1] + pas,self.retro_left_rotation[2])
+            elif(self.curentRetroIndex == 3):
+                self.retro_left_fov = self.retro_left_fov + rot
+            elif(self.curentRetroIndex == 4):
+                self.retro_right_position = (self.retro_right_position[0]+pas,self.retro_right_position[1],self.retro_right_position[2])
+            elif(self.curentRetroIndex == 5):
+                self.retro_right_position = (self.retro_right_position[0],self.retro_right_position[1]+pas,self.retro_right_position[2])
+            elif(self.curentRetroIndex == 6 ):
+                self.retro_right_rotation = (self.retro_right_rotation[0],self.retro_right_rotation[1]+pas,self.retro_right_rotation[2])
+            elif(self.curentRetroIndex == 7 ):
+                self.retro_right_fov = self.retro_right_fov + rot
 
-        if(self.mirrors is not None):
-            if(self.curentRetroIndex == 3 or self.curentRetroIndex == 7):
-                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
-                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
-                self.init_mirrors()
-            elif(self.curentRetroIndex<3):
-                print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
-                self.mirrors[0].setTransform(self.retro_left_position,self.retro_left_rotation)
-            else:
-                print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
-                self.mirrors[1].setTransform(self.retro_right_position,self.retro_right_rotation)
+            if(self.mirrors is not None):
+                if(self.curentRetroIndex == 3 or self.curentRetroIndex == 7):
+                    print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
+                    print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
+                    self.init_mirrors()
+                elif(self.curentRetroIndex<3):
+                    print("Mirror left : "+str(self.retro_left_position)+ " " + str(self.retro_left_rotation) +" fov : "+str(self.retro_left_fov))
+                    self.mirrors[0].setTransform(self.retro_left_position,self.retro_left_rotation)
+                else:
+                    print("Mirror right : "+str(self.retro_right_position)+ " " + str(self.retro_right_rotation) +" fov : "+str(self.retro_right_fov))
+                    self.mirrors[1].setTransform(self.retro_right_position,self.retro_right_rotation)
 
     def receive_noise_message(self, msg):
         self.noise.warningActive = True if msg.decode('utf-8') != "0" else False
@@ -1293,7 +1297,7 @@ class NoCameraManager(object):
         self.index = None
 
 class Mirror(object):
-    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, fov,ip=None, port=None):
+    def __init__(self, parent_actor, dim, pos, topic, world_position, world_rotation, create_sensor, fov,ip=None, port=None,toYUV=False):
         print('INIT MIRROR')
         self._parent = parent_actor
         self.dim = dim
@@ -1307,6 +1311,7 @@ class Mirror(object):
         self.ip = ip
         self.port = port
         self.tcp_client = None
+        self.toYUV = toYUV
         if create_sensor :
             world = self._parent.get_world()
             bp_library = world.get_blueprint_library()
@@ -1314,7 +1319,7 @@ class Mirror(object):
             bp.set_attribute('image_size_x', str(self.dim[0]))
             bp.set_attribute('image_size_y', str(self.dim[1]))
             bp.set_attribute('fov',str(fov))
-            #bp.set_attribute('sensor_tick',str(1.0/30))
+            bp.set_attribute('sensor_tick',str(1.0/30))
             bp.set_attribute('enable_postprocess_effects',str(True))
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
@@ -1357,7 +1362,12 @@ class Mirror(object):
             self.callback(array)
         if(self.tcp_client is None):
             self.tcp_client = TCP.Client(self.ip,self.port)
-        self.tcp_client.Send(array.tobytes())
+        if(self.toYUV):
+            #print(YUV.BGRA2YUV(array))
+            #self.tcp_client.Send(bytes(YUV.BGRA2YUV(array)))
+            self.tcp_client.Send(YUV.BGRA2YUV(array))
+        else:
+            self.tcp_client.Send(array.tobytes())
 
     def destroy(self):
         if self.sensor is not None :
@@ -1390,7 +1400,6 @@ def game_loop(args):
             ( pygame.FULLSCREEN if args.fullscreen else 0))
         
         hud = HUD(args.width, args.height,(args.mWidth,args.mHeight))
-
         world = World(client.get_world(), hud, args)
         
         if args.wheel :
@@ -1426,6 +1435,7 @@ def game_loop(args):
 
 
 def main():
+
     argparser = argparse.ArgumentParser(
         description='CARLA Manual Control Client')
     argparser.add_argument(
@@ -1475,8 +1485,8 @@ def main():
     )
     argparser.add_argument(
         '--mirror_size',
-        default='1280x720',
-        help='mirror resolution (default: 1280x720)')
+        default='1280x800',
+        help='mirror resolution (default: 1280x800)')
     argparser.add_argument(
         '--fullscreen',
         action='store_true',
