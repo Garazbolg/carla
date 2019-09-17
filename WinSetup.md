@@ -28,7 +28,7 @@ Follow [Carla tutorial for building on Windows](https://carla.readthedocs.io/en/
 	I moved all the other compilers to another folder. If you have a better way to achieve this go ahead.
 - I my case the scripts couldn't find ***vcvarsall.bat*** so I copied it inside the **Hostx64** Folder from :
 
-		C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat
+		C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat
 - You might need to look for hard coded paths to change in some .bat files (notably the ones in carla/Run)
   
 ### Install the virtual machine
