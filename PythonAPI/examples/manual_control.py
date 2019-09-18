@@ -259,7 +259,6 @@ class World(object):
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
         #Setup the mirrors.
-        time.sleep(0.5)
         self.init_mirrors()
 
     def init_mirrors(self):
@@ -276,7 +275,7 @@ class World(object):
                 self.retro_left_rotation,
                 not self.mixed_reality_mode,
                 self.retro_left_fov,
-                "192.168.1.20",5581,
+                self.V3H_IP,5581,
                 True))
         self.mirrors.append(
            Mirror(
@@ -1321,6 +1320,7 @@ class Mirror(object):
             bp.set_attribute('fov',str(fov))
             bp.set_attribute('sensor_tick',str(1.0/30))
             bp.set_attribute('enable_postprocess_effects',str(True))
+            self.tcp_client = TCP.Client(self.ip,self.port)
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1360,14 +1360,11 @@ class Mirror(object):
                 dtype=numpy.uint8, buffer=image.raw_data)
         if(self.debug_OnScreenRender):
             self.callback(array)
-        if(self.tcp_client is None):
-            self.tcp_client = TCP.Client(self.ip,self.port)
-        if(self.toYUV):
-            #print(YUV.BGRA2YUV(array))
-            #self.tcp_client.Send(bytes(YUV.BGRA2YUV(array)))
-            self.tcp_client.Send(YUV.BGRA2YUV(array))
-        else:
-            self.tcp_client.Send(array.tobytes())
+        if(self.tcp_client is not None):
+            if(self.toYUV):
+                self.tcp_client.Send(YUV.BGRA2YUV(array))
+            else:
+                self.tcp_client.Send(array.tobytes())
 
     def destroy(self):
         if self.sensor is not None :
