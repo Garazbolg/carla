@@ -583,7 +583,7 @@ class DualControl(object):
                 elif self._control.manual_gear_shift and event.button == self._gear_down_idx:
                     self._control.gear = max(-1, self._control.gear - 1)
                 elif self._control.manual_gear_shift and event.button == self._gear_up_idx:
-                    self._control.gear = self._control.gear + 1
+                    self._control.gear = min(5,self._control.gear + 1)
                 elif event.button == self._auto_pilot_idx:
                     self._autopilot_enabled = not self._autopilot_enabled
                     world.player.set_autopilot(self._autopilot_enabled)
