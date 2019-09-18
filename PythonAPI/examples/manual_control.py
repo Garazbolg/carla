@@ -1311,6 +1311,7 @@ class Mirror(object):
         self.port = port
         self.tcp_client = None
         self.toYUV = toYUV
+        self.frame_id = 0
         if create_sensor :
             world = self._parent.get_world()
             bp_library = world.get_blueprint_library()
@@ -1320,7 +1321,9 @@ class Mirror(object):
             bp.set_attribute('fov',str(fov))
             bp.set_attribute('sensor_tick',str(1.0/30))
             bp.set_attribute('enable_postprocess_effects',str(True))
-            self.tcp_client = TCP.Client(self.ip,self.port)
+            if(self.tcp_client is None):
+                self.tcp_client = TCP.ThreadedClient(self.ip,self.port,self.toYUV)
+                self.tcp_client.start()
             self.sensor = self._parent.get_world().spawn_actor(
                     bp,
                     carla.Transform(
@@ -1361,10 +1364,8 @@ class Mirror(object):
         if(self.debug_OnScreenRender):
             self.callback(array)
         if(self.tcp_client is not None):
-            if(self.toYUV):
-                self.tcp_client.Send(YUV.BGRA2YUV(array))
-            else:
-                self.tcp_client.Send(array.tobytes())
+            self.tcp_client.Send(array,self.frame_id)
+            self.frame_id = self.frame_id + 1
 
     def destroy(self):
         if self.sensor is not None :
