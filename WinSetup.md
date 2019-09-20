@@ -32,8 +32,10 @@ Follow [Carla tutorial for building on Windows](https://carla.readthedocs.io/en/
 - You might need to look for hard coded paths to change in some .bat files (notably the ones in carla/Run)
   
 ### Install the virtual machine
-	***Missing***
+Get virtual box as well as the extension pack. Install both of them.
+Then in VirtualBox->File->Import Appliance : Select the .ova the E:\Lubuntu_export\
+The virtual machine should be install, but the CNN build that is on it is pretty old. You should replace it with an up-to-date one
 	
 ### Install the wheel drivers
-	[ Dowload Drivers](https://support.thrustmaster.com/fr/product/txracingwheel-fr/) and follow the procedure to install the drivers and update the firmware
+[ Dowload Drivers](https://support.thrustmaster.com/fr/product/txracingwheel-fr/) and follow the procedure to install the drivers and update the firmware
 	
