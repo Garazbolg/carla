@@ -13,7 +13,7 @@
 - setuptools
 - pygame
 - numpy
-- pyaudio
+- pyaudio (you will need to install from a [wheel](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio) )
 
 Follow [Carla tutorial for building on Windows](https://carla.readthedocs.io/en/latest/how_to_build_on_windows/) :
 - Instead of cloning from carla/simulator repo clone from 
@@ -35,7 +35,8 @@ Follow [Carla tutorial for building on Windows](https://carla.readthedocs.io/en/
 	***Missing***
 	
 ### Install the wheel drivers
-	[ Dowload Drivers](https://support.thrustmaster.com/fr/product/txracingwheel-fr/) and follow the procedure
+	[ Dowload Drivers](https://support.thrustmaster.com/fr/product/txracingwheel-fr/) and follow the procedure to install the drivers and update the firmware
+	
 
 # How to start the simulation
 
