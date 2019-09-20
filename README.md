@@ -1,3 +1,15 @@
+[How to install and build on Windows](WinSetup.md)
+
+[How to start the Simulation](Docs/eSoft/WindowsLaunch.md)
+
+[Controls](Docs/eSoft/eSoftThings-Simulator-Inputs.pdf)
+
+
+
+
+# CARLA README :
+
+
 CARLA Simulator
 ===============
 
